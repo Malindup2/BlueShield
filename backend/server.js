@@ -15,6 +15,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', require('./src/routes/authRoutes'));
+app.use('/api/enforcements', require('./src/routes/enforcementRoutes'));
 
 
 app.get('/', (req, res) => {
