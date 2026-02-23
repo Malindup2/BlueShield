@@ -64,3 +64,6 @@ exports.update = (req) => {
 
   return { error: errors.length ? errors : null };
 };
+
+
+exports.weather = exports.getById;

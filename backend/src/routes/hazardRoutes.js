@@ -48,4 +48,13 @@ router.patch(
 );
 
 
+// Weather check (Open-Meteo)
+router.get(
+  "/:id/weather",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.weather),
+  hazardCtrl.weather
+);
+
 module.exports = router;

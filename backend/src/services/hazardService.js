@@ -1,5 +1,6 @@
 const Hazard = require("../models/Hazard");
 const Report = require("../models/Report");
+const marineService = require("./marineService");
 
 
 
@@ -127,4 +128,35 @@ exports.update = async ({ id, payload, actorId }) => {
   );
 
   return updated;
+};
+
+
+
+
+exports.fetchWeatherAndSave = async ({ id, actorId }) => {
+  const hazard = await Hazard.findById(id).populate("baseReport");
+  if (!hazard) {
+    const err = new Error("Hazard not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const coords = hazard.baseReport?.location?.coordinates;
+  if (!coords || coords.length !== 2) {
+    const err = new Error("Hazard has no valid coordinates");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const [lng, lat] = coords;
+
+  const marineResult = await marineService.fetchMarineConditions({ lat, lng });
+
+  const updated = await Hazard.findByIdAndUpdate(
+    id,
+    { $set: { lastWeatherCheck: marineResult, updatedBy: actorId } },
+    { new: true, runValidators: true }
+  );
+
+  return updated.lastWeatherCheck;
 };
