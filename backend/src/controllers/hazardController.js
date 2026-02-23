@@ -50,3 +50,17 @@ exports.update = async (req, res) => {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
 };
+
+
+//check current weather condition
+exports.weather = async (req, res) => {
+  try {
+    const result = await hazardService.fetchWeatherAndSave({
+      id: req.params.id,
+      actorId: req.user._id,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
