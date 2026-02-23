@@ -29,5 +29,23 @@ router.get(
 );
 
 
+// Get hazard
+router.get(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.getById),
+  hazardCtrl.getById
+);
+
+// Update hazard
+router.patch(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.update),
+  hazardCtrl.update
+);
+
 
 module.exports = router;

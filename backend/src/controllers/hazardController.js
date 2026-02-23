@@ -23,3 +23,30 @@ exports.list = async (req, res) => {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
 };
+
+
+// get one hazard record using id 
+exports.getById = async (req, res) => {
+  try {
+    const doc = await hazardService.getById(req.params.id);
+    res.json(doc);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+
+
+// update an existing hazard record
+exports.update = async (req, res) => {
+  try {
+    const doc = await hazardService.update({
+      id: req.params.id,
+      payload: req.body,
+      actorId: req.user._id,
+    });
+    res.json(doc);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};

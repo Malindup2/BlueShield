@@ -89,3 +89,42 @@ exports.list = async ({ query }) => {
 
   return { page, limit, total, items };
 };
+
+
+
+
+exports.getById = async (id) => {
+  const doc = await Hazard.findById(id).populate("baseReport");
+  if (!doc) {
+    const err = new Error("Hazard not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  return doc;
+};
+
+
+
+exports.update = async ({ id, payload, actorId }) => {
+  const current = await Hazard.findById(id);
+  if (!current) {
+    const err = new Error("Hazard not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // enforce: RESOLVED only through /resolve endpoint
+  if (payload?.handlingStatus === "RESOLVED") {
+    const err = new Error("Use /hazards/:id/resolve to resolve a hazard");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const updated = await Hazard.findByIdAndUpdate(
+    id,
+    { $set: { ...payload, updatedBy: actorId } },
+    { new: true, runValidators: true }
+  );
+
+  return updated;
+};
