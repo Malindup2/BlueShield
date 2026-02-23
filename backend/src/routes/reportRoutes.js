@@ -19,3 +19,5 @@ router.delete("/:reportId", protect, validate(v.getById), ctrl.remove);
 
 module.exports = router;
 
+//test
+
