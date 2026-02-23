@@ -10,12 +10,16 @@ const v = require("../validations/report.validation");
 
 const ctrl = require("../controllers/reportController");
 
-// CRUD
-router.post("/", protect, validate(v.create), ctrl.create);
-router.get("/", protect, ctrl.list);
-router.get("/:reportId", protect, validate(v.getById), ctrl.getById);
-router.patch("/:reportId", protect, validate(v.update), ctrl.update);
-router.delete("/:reportId", protect, validate(v.getById), ctrl.remove);
+// CRUD operations for reports 
+
+// need to figure out the Authroization level for this CRUD (officer, fisherman and system_admin has the privilege to create a report, but only officer and system_admin can update or delete a report)
+router.post("/", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN"), validate(v.create), ctrl.create);
+router.get("/", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.list);
+router.get("/:reportId", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), validate(v.getById), ctrl.getById);
+router.patch("/:reportId", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN"), validate(v.update), ctrl.update);
+router.delete("/:reportId", protect, validate(v.getById), ctrl.remove); 
+//only system_admin can delete a report, but officer and fisherman can update a report (e.g. change the status of the report or add more details to the report)
+
 
 module.exports = router;
 
