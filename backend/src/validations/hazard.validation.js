@@ -35,3 +35,32 @@ exports.list = (req) => {
 
   return { error: errors.length ? errors : null };
 };
+
+
+
+exports.getById = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");
+  return { error: errors.length ? errors : null };
+};
+
+
+
+exports.update = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");
+
+  const body = req.body || {};
+
+  // allow statuses but block RESOLVED here
+  if (body.handlingStatus) {
+    if (!HANDLING_STATUS.includes(body.handlingStatus)) errors.push("Invalid handlingStatus");
+    if (body.handlingStatus === "RESOLVED") errors.push("Use /hazards/:id/resolve to resolve a hazard");
+  }
+
+  if (body.hazardCategory && !HAZARD_CATEGORIES.includes(body.hazardCategory)) errors.push("Invalid hazardCategory");
+  if (body.severity && !SEVERITIES.includes(body.severity)) errors.push("Invalid severity");
+  if (body.zoneRequired != null && typeof body.zoneRequired !== "boolean") errors.push("zoneRequired must be boolean");
+
+  return { error: errors.length ? errors : null };
+};
