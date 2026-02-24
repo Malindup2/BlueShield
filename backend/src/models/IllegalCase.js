@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
-const CASE_STATUSES = ["OPEN", "INVESTIGATING", "COURT_PENDING", "CLOSED_RESOLVED", "CLOSED_DISMISSED"];
+// New statuses 
+const CASE_STATUSES = ["OPEN", "ESCALATED", "RESOLVED"];
 const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
 const illegalCaseSchema = new mongoose.Schema(
@@ -9,6 +10,7 @@ const illegalCaseSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
+    // Reference to the original fisherman-reported incident (ILLEGAL_FISHING type)
     baseReport: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Report",
@@ -23,50 +25,72 @@ const illegalCaseSchema = new mongoose.Schema(
     description: {
       type: String,
       trim: true,
+      required: [true, "Description is required"],
     },
     severity: {
       type: String,
       enum: SEVERITIES,
       default: "MEDIUM",
+      required: true,
     },
     status: {
       type: String,
       enum: CASE_STATUSES,
       default: "OPEN",
     },
+    // Vessel information fields
+    vesselId: {
+      type: String, // Stored as "IMO-XXXXXXX"
+      trim: true,
+      required: [true, "Vessel ID is required"],
+    },
+    vesselType: {
+      type: String,
+      trim: true,
+      required: [true, "Vessel type is required"],
+    },
+    // Officer assigned via escalate action (ObjectId ref to User with role OFFICER)
+    // Only set when admin escalates the case — null until then
     assignedOfficer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      default: null,
     },
-    suspects: [
+    // Tracks whether the 'track' button has been used (can only be clicked once)
+    trackButtonUsed: {
+      type: Boolean,
+      default: false,
+    },
+    // Stores the fetched vessel data from external API permanently
+    trackedVesselData: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    // Reference notes added by admin in the third section of the details page
+    reviewNotes: [
       {
-        name: String,
-        identification: String,
-        description: String,
-        addedAt: { type: Date, default: Date.now },
+        content: {
+          type: String,
+          required: true,
+        },
+        addedAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
-    evidence: [
-      {
-        description: String,
-        url: String,
-        type: String,
-        collectedAt: { type: Date, default: Date.now },
-        collectedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      },
-    ],
-    notes: [
-      {
-        content: String,
-        addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        addedAt: { type: Date, default: Date.now },
-      },
-    ],
-    closedAt: {
+    // Whether the base report has been "marked as reviewed" in the dashboard
+    // Also set to true automatically when status becomes RESOLVED
+    isReviewed: {
+      type: Boolean,
+      default: false,
+    },
+    // Set when the case is escalated
+    escalatedAt: {
       type: Date,
       default: null,
     },
-    closedBy: {
+    escalatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
@@ -81,14 +105,13 @@ const illegalCaseSchema = new mongoose.Schema(
 );
 
 // Auto-generate case number before save
-illegalCaseSchema.pre("save", async function (next) {
-  if (!this.isNew) return next();
-
+illegalCaseSchema.pre("save", async function () {
+  if (!this.isNew) return;
   const count = await mongoose.model("IllegalCase").countDocuments();
   this.caseNumber = `IC-${Date.now()}-${String(count + 1).padStart(5, "0")}`;
-  next();
 });
 
 illegalCaseSchema.index({ status: 1, severity: 1 });
+illegalCaseSchema.index({ baseReport: 1 }, { unique: true }); // One review record per report
 
 module.exports = mongoose.model("IllegalCase", illegalCaseSchema);
