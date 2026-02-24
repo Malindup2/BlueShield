@@ -66,4 +66,16 @@ exports.update = (req) => {
 };
 
 
+
+
+exports.resolve = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");
+
+  const body = req.body || {};
+  if (body.resolutionNote != null && typeof body.resolutionNote !== "string") errors.push("resolutionNote must be string");
+
+  return { error: errors.length ? errors : null };
+};
+
 exports.weather = exports.getById;

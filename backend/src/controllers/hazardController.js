@@ -64,3 +64,17 @@ exports.weather = async (req, res) => {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
 };
+
+
+exports.resolve = async (req, res) => {
+  try {
+    const doc = await hazardService.resolve({
+      id: req.params.id,
+      resolutionNote: req.body?.resolutionNote,
+      actorId: req.user._id,
+    });
+    res.json(doc);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};

@@ -57,4 +57,16 @@ router.get(
   hazardCtrl.weather
 );
 
+
+
+// Resolve hazard (disable zones + resolve report)
+router.patch(
+  "/:id/resolve",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.resolve),
+  hazardCtrl.resolve
+);
+
+
 module.exports = router;
