@@ -160,3 +160,37 @@ exports.fetchWeatherAndSave = async ({ id, actorId }) => {
 
   return updated.lastWeatherCheck;
 };
+
+
+
+
+exports.resolve = async ({ id, resolutionNote, actorId }) => {
+  const hazard = await Hazard.findById(id);
+  if (!hazard) {
+    const err = new Error("Hazard not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const updatedHazard = await Hazard.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        handlingStatus: "RESOLVED",
+        resolvedAt: new Date(),
+        resolutionNote: resolutionNote || hazard.resolutionNote || null,
+        updatedBy: actorId,
+      },
+    },
+    { new: true, runValidators: true }
+  );
+
+  await Zone.updateOne(
+    { sourceHazard: id, status: "ACTIVE" },
+    { $set: { status: "DISABLED", updatedBy: actorId } }
+  );
+
+  await Report.findByIdAndUpdate(hazard.baseReport, { $set: { status: "RESOLVED" } });
+
+  return updatedHazard;
+};
