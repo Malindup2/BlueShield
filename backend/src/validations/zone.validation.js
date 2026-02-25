@@ -56,3 +56,25 @@ exports.getById = (req) => {
   if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");
   return { error: errors.length ? errors : null };
 };
+
+
+
+exports.update = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");
+
+  const body = req.body || {};
+  if (body.zoneType && !ZONE_TYPES.includes(body.zoneType)) errors.push("Invalid zoneType");
+  if (body.status && !ZONE_STATUS.includes(body.status)) errors.push("Invalid status");
+
+  if (body.warningMessage != null) {
+    if (typeof body.warningMessage !== "string" || !body.warningMessage.trim()) errors.push("warningMessage must be string");
+  }
+
+  if (body.center && !isLngLat(body.center)) errors.push("center must be [lng, lat] numbers");
+  if (body.radius != null && (typeof body.radius !== "number" || body.radius < 10 || body.radius > 50000)) {
+    errors.push("radius must be a number between 10 and 50000 meters");
+  }
+
+  return { error: errors.length ? errors : null };
+};

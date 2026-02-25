@@ -38,6 +38,18 @@ router.get(
 );
 
 
+// Update zone (disable/edit)
+router.patch(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.update),
+  zonectrl.update
+);
+
+
+
+
 
 
 module.exports = router;

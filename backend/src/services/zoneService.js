@@ -87,3 +87,20 @@ exports.getById = async (id) => {
   }
   return doc;
 };
+
+
+
+exports.update = async ({ id, payload, actorId }) => {
+  const updateDoc = { $set: { ...payload, updatedBy: actorId } };
+  if (payload.center) updateDoc.$set.center = { type: "Point", coordinates: payload.center };
+
+  const updated = await Zone.findByIdAndUpdate(id, updateDoc, { new: true, runValidators: true });
+  if (!updated) {
+    const err = new Error("Zone not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  return updated;
+};
+
+

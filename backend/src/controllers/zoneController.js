@@ -34,3 +34,20 @@ exports.getById = async (req, res) => {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
 };
+
+
+
+exports.update = async (req, res) => {
+  try {
+    const doc = await zoneService.update({
+      id: req.params.id,
+      payload: req.body,
+      actorId: req.user._id,
+    });
+    res.json(doc);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+
