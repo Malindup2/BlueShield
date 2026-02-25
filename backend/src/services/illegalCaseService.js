@@ -247,3 +247,71 @@ exports.deleteCase = async ({ caseId }) => {
   await IllegalCase.findByIdAndDelete(caseId);
   return { id: caseId };
 };
+
+// get all users with role OFFICER for the assign officer 
+ 
+exports.getOfficers = async () => {
+  const officers = await User.find({ role: "OFFICER", isActive: true }).select(
+    "name email role"
+  );
+  return officers;
+};
+
+// escalating the case for the specific officer and update status
+
+exports.escalateCase = async ({ caseId, officerId, actorId }) => {
+  const illegalCase = await IllegalCase.findById(caseId);
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Block if already escalated or resolved
+  if (illegalCase.status === "ESCALATED") {
+    const err = new Error("Case is already escalated");
+    err.statusCode = 409;
+    throw err;
+  }
+  if (illegalCase.status === "RESOLVED") {
+    const err = new Error("Cannot escalate a resolved case");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Check vessel tracking was done first
+  if (!illegalCase.trackButtonUsed) {
+    const err = new Error("Please track the vessel data before escalating the case");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check officer is provided
+  if (!officerId) {
+    const err = new Error("Please assign an officer to escalate the case further");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Verify the officer exists and has the correct role
+  const officer = await User.findById(officerId);
+  if (!officer || officer.role !== "OFFICER") {
+    const err = new Error("Selected user is not a valid officer");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Perform escalation
+  illegalCase.assignedOfficer = officerId;
+  illegalCase.status = "ESCALATED";
+  illegalCase.escalatedAt = new Date();
+  illegalCase.escalatedBy = actorId;
+  await illegalCase.save();
+
+  // Populate and return
+  const populated = await IllegalCase.findById(caseId)
+    .populate("assignedOfficer", "name email role")
+    .populate("escalatedBy", "name email");
+
+  return populated;
+};
