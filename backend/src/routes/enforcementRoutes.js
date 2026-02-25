@@ -20,9 +20,19 @@ router.post("/from-case/:caseId", protect, authorize("OFFICER", "SYSTEM_ADMIN"),
 
 // Actions log
 router.post("/:enforcementId/actions", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.addAction), ctrl.addAction);
+router.patch("/:enforcementId/actions/:actionId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.updateAction), ctrl.updateAction);
 router.delete("/:enforcementId/actions/:actionId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.deleteAction), ctrl.deleteAction);
 
-// External API feature (AI)
+// Close enforcement with outcome
+router.patch(
+  "/:enforcementId/close",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN"),
+  validate(v.close),
+  ctrl.close
+);
+
+// External API feature (AI) - Gemini risk score
 router.post(
   "/:enforcementId/risk-score",
   protect,

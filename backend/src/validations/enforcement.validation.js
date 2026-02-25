@@ -51,3 +51,27 @@ exports.deleteAction = (req) => {
   if (!isObjectId(req.params.actionId)) errors.push("actionId must be a valid ObjectId");
   return { error: errors.length ? errors : null };
 };
+
+exports.updateAction = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.enforcementId)) errors.push("enforcementId must be a valid ObjectId");
+  if (!isObjectId(req.params.actionId)) errors.push("actionId must be a valid ObjectId");
+
+  const body = req.body || {};
+  if (body.actionType && !ACTION_TYPES.includes(body.actionType)) errors.push("Invalid actionType");
+  if (body.amount != null && (typeof body.amount !== "number" || body.amount < 0)) errors.push("amount must be a number >= 0");
+
+  return { error: errors.length ? errors : null };
+};
+
+exports.close = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.enforcementId)) errors.push("enforcementId must be a valid ObjectId");
+
+  const body = req.body || {};
+  const OUTCOMES = ["PENDING", "WARNING_ISSUED", "FINE_COLLECTED", "EQUIPMENT_SEIZED", "VESSEL_SEIZED", "ARREST_MADE", "CASE_DISMISSED"];
+  if (body.outcome && !OUTCOMES.includes(body.outcome)) errors.push("Invalid outcome");
+  if (body.penaltyAmount != null && (typeof body.penaltyAmount !== "number" || body.penaltyAmount < 0)) errors.push("penaltyAmount must be >= 0");
+
+  return { error: errors.length ? errors : null };
+};
