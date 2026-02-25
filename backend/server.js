@@ -18,6 +18,7 @@ app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/enforcements', require('./src/routes/enforcementRoutes'));
 
 app.use("/api/hazards", require("./src/routes/hazardRoutes"));
+app.use("/api/zones", require("./src/routes/zoneRoutes"));
 
 
 app.get('/', (req, res) => {
