@@ -1,3 +1,10 @@
+/**
+ * Hazard request validators
+ * - Keeps request validation rules in one place for hazards
+ * - Returns { error: string[] | null } for middleware to handle
+ */
+
+
 const isObjectId = (v) => typeof v === "string" && /^[a-fA-F0-9]{24}$/.test(v);
 
 const HANDLING_STATUS = ["OPEN", "MONITORING", "MITIGATION_PLANNED", "MITIGATION_IN_PROGRESS", "RESOLVED"];
@@ -46,13 +53,18 @@ exports.getById = (req) => {
 
 
 
+
+/**
+ * Validate hazard update payload (PATCH /hazards/:id)
+ * Business rule: RESOLVED status must only be set via /resolve endpoint.
+ */
 exports.update = (req) => {
   const errors = [];
   if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");
 
   const body = req.body || {};
 
-  // allow statuses but block RESOLVED here
+  // Allow status updates, but prevent bypassing the resolve workflow.
   if (body.handlingStatus) {
     if (!HANDLING_STATUS.includes(body.handlingStatus)) errors.push("Invalid handlingStatus");
     if (body.handlingStatus === "RESOLVED") errors.push("Use /hazards/:id/resolve to resolve a hazard");

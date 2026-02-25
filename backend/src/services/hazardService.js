@@ -3,10 +3,17 @@ const Report = require("../models/Report");
 const marineService = require("./marineService");
 
 
-
+/**
+ * Only these report types are allowed to be converted into a Hazard case.
+ */
 const ALLOWED_REPORT_TYPES = ["HAZARD", "ENVIRONMENTAL"];
 
 
+
+/**
+ * Build Mongo filter from query params.
+ * Keep this small so list() stays clean and consistent across endpoints.
+ */
 const buildFilter = (query = {}) => {
   const filter = {};
   if (query.handlingStatus) filter.handlingStatus = query.handlingStatus;
@@ -19,6 +26,9 @@ const buildFilter = (query = {}) => {
 
 
 
+/**
+ * Generates the next sequential hazard case ID in HZ### format.
+ */
 const nextCaseId = async () => {
   const last = await Hazard.findOne({}, { caseId: 1 }).sort({ createdAt: -1 }).lean();
   const m = last?.caseId?.match(/^HZ(\d+)$/);
@@ -26,6 +36,14 @@ const nextCaseId = async () => {
   return `HZ${String(lastNum + 1).padStart(3, "0")}`;
 };
 
+
+
+/**
+ * Create a Hazard case from an existing Report.
+ * Rules enforced here:
+ * - One hazard per report (baseReport unique)
+ * - Report must exist, be VERIFIED, and be an allowed type
+ */
 exports.createFromReport = async ({ reportId, payload, actorId }) => {
   const existing = await Hazard.findOne({ baseReport: reportId });
   if (existing) {
@@ -62,7 +80,7 @@ exports.createFromReport = async ({ reportId, payload, actorId }) => {
     severity: payload.severity || report.severity || "MEDIUM",
     handlingStatus: "OPEN",
 
-    // allow zoneRequired from body, default false if missing
+  
     zoneRequired: typeof payload.zoneRequired === "boolean" ? payload.zoneRequired : false,
 
     createdBy: actorId,
@@ -74,6 +92,10 @@ exports.createFromReport = async ({ reportId, payload, actorId }) => {
 
 
 
+/**
+ * List hazards with pagination and filtering.
+ * Populates baseReport so UI can show report details together with the hazard.
+ */
 exports.list = async ({ query }) => {
   const page = Math.max(parseInt(query.page || "1", 10), 1);
   const limit = Math.min(Math.max(parseInt(query.limit || "10", 10), 1), 50);
@@ -93,7 +115,9 @@ exports.list = async ({ query }) => {
 
 
 
-
+/**
+ * Get hazard by id (with baseReport details).
+ */
 exports.getById = async (id) => {
   const doc = await Hazard.findById(id).populate("baseReport");
   if (!doc) {
@@ -106,6 +130,10 @@ exports.getById = async (id) => {
 
 
 
+/**
+ * Update hazard fields.
+ * Important rule: RESOLVED status update is only allowed through resolve() function (keeps resolution workflow consistent).
+ */
 exports.update = async ({ id, payload, actorId }) => {
   const current = await Hazard.findById(id);
   if (!current) {
@@ -114,7 +142,7 @@ exports.update = async ({ id, payload, actorId }) => {
     throw err;
   }
 
-  // enforce: RESOLVED only through /resolve endpoint
+  // Prevent bypassing the resolution workflow.
   if (payload?.handlingStatus === "RESOLVED") {
     const err = new Error("Use /hazards/:id/resolve to resolve a hazard");
     err.statusCode = 409;
@@ -132,7 +160,10 @@ exports.update = async ({ id, payload, actorId }) => {
 
 
 
-
+/**
+ * Fetch marine/weather conditions based on hazard coordinates and store snapshot in lastWeatherCheck.
+ * Returns the stored snapshot with advisory warning.
+ */
 exports.fetchWeatherAndSave = async ({ id, actorId }) => {
   const hazard = await Hazard.findById(id).populate("baseReport");
   if (!hazard) {
@@ -164,6 +195,12 @@ exports.fetchWeatherAndSave = async ({ id, actorId }) => {
 
 
 
+/**
+ * Resolve hazard and apply side-effects:
+ * - hazard => RESOLVED + resolvedAt + note
+ * - active zone (if any) => DISABLED
+ * - base report => RESOLVED
+ */
 exports.resolve = async ({ id, resolutionNote, actorId }) => {
   const hazard = await Hazard.findById(id);
   if (!hazard) {
@@ -193,4 +230,35 @@ exports.resolve = async ({ id, resolutionNote, actorId }) => {
   await Report.findByIdAndUpdate(hazard.baseReport, { $set: { status: "RESOLVED" } });
 
   return updatedHazard;
+};
+
+
+
+/**
+ * Only allow deleting a hazard after it is RESOLVED and no ACTIVE zones exist.
+ * (Prevents deleting cases that are still operationally relevant.)
+ */
+exports.deleteIfAllowed = async ({ id }) => {
+  const hazard = await Hazard.findById(id);
+  if (!hazard) {
+    const err = new Error("Hazard not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (hazard.handlingStatus !== "RESOLVED") {
+    const err = new Error("Hazard can only be deleted when handlingStatus is RESOLVED");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const activeZoneCount = await Zone.countDocuments({ sourceHazard: id, status: "ACTIVE" });
+  if (activeZoneCount > 0) {
+    const err = new Error("Hazard cannot be deleted while an ACTIVE zone exists");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  await Hazard.deleteOne({ _id: id });
+  return { deletedId: id };
 };

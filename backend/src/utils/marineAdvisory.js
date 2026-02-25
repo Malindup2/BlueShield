@@ -1,10 +1,15 @@
 
+/**
+ * Computes a risk level and advisory message based on marine wave conditions.
+ * Uses simple, rule-based thresholds to ensure consistent and explainable results.
+ */
+
 const computeRiskAndAdvisory = ({ waveHeight, windWaveHeight }) => {
 
   const wh = typeof waveHeight === "number" ? waveHeight : 0;
   const wwh = typeof windWaveHeight === "number" ? windWaveHeight : 0;
 
-  // Simple + predictable thresholds 
+  
   if (wh >= 3 || wwh >= 2) {
     return {
       riskLevel: "HIGH",
