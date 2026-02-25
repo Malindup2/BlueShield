@@ -162,12 +162,6 @@ exports.close = async (req, res) => {
   }
 };
 
-// ============================================================================
-// EVIDENCE MANAGEMENT CONTROLLERS - Separate Model Pattern
-// ============================================================================
-// Evidence uses a separate model (like Sanduni's Zone.js pattern).
-// These handlers manage evidence chain-of-custody operations.
-// ============================================================================
 
 /**
  * Get all evidence items for an enforcement record
@@ -236,12 +230,6 @@ exports.deleteEvidence = async (req, res) => {
   }
 };
 
-// ============================================================================
-// TEAM MANAGEMENT CONTROLLERS - Separate Model Pattern
-// ============================================================================
-// TeamMember uses a separate model (like Minuli's CaseReviewd.js pattern).
-// These handlers manage team assignment and removal operations.
-// ============================================================================
 
 /**
  * Get all team members for an enforcement record
@@ -307,5 +295,36 @@ exports.deleteTeamMember = async (req, res) => {
     res.json({ message: "Team member removed", id: deleted._id });
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+
+/**
+ * Get basic enforcement statistics
+ * GET /api/enforcements/stats/basic
+ */
+exports.getBasicStats = async (req, res) => {
+  try {
+    const stats = await enforcementService.getBasicStatistics();
+    res.json(stats);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
+/**
+ * Get statistics with date range filtering
+ * GET /api/enforcements/stats/by-date?startDate=&endDate=&groupBy=day|week|month
+ */
+exports.getStatsByDateRange = async (req, res) => {
+  try {
+    const stats = await enforcementService.getStatisticsByDateRange({
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      groupBy: req.query.groupBy || "day",
+    });
+    res.json(stats);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
   }
 };
