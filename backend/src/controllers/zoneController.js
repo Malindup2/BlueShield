@@ -51,3 +51,11 @@ exports.update = async (req, res) => {
 };
 
 
+exports.remove = async (req, res) => {
+  try {
+    const deleted = await zoneService.remove({ id: req.params.id });
+    res.json({ message: "Deleted", id: deleted._id });
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};

@@ -48,7 +48,14 @@ router.patch(
 );
 
 
-
+// Delete zone (optional cleanup)
+router.delete(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN","SYSTEM_ADMIN"),
+  validate(v.getById),
+  zonectrl.remove
+);
 
 
 

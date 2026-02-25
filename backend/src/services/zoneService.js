@@ -104,3 +104,12 @@ exports.update = async ({ id, payload, actorId }) => {
 };
 
 
+exports.remove = async ({ id }) => {
+  const deleted = await Zone.findByIdAndDelete(id);
+  if (!deleted) {
+    const err = new Error("Zone not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  return deleted;
+};
