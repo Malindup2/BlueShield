@@ -539,3 +539,98 @@ exports.getBasicStatistics = async () => {
     byOutcome,
   };
 };
+
+/**
+ * Get enforcement statistics with date range filtering
+ * Supports daily, weekly, monthly aggregations
+ * @param {Object} params - Contains startDate, endDate, groupBy
+ * @returns {Object} Statistics with time-based breakdown
+ */
+exports.getStatisticsByDateRange = async ({ startDate, endDate, groupBy = "day" }) => {
+  // Default to last 30 days if no dates provided
+  const end = endDate ? new Date(endDate) : new Date();
+  const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Date grouping format based on groupBy parameter
+  let dateFormat;
+  switch (groupBy) {
+    case "week":
+      dateFormat = { $isoWeek: "$createdAt" };
+      break;
+    case "month":
+      dateFormat = { $month: "$createdAt" };
+      break;
+    case "year":
+      dateFormat = { $year: "$createdAt" };
+      break;
+    default:
+      dateFormat = { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } };
+  }
+
+  // Aggregate enforcements created within date range
+  const createdByPeriod = await Enforcement.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: start, $lte: end },
+      },
+    },
+    {
+      $group: {
+        _id: dateFormat,
+        count: { $sum: 1 },
+        highPriority: {
+          $sum: { $cond: [{ $in: ["$priority", ["HIGH", "CRITICAL"]] }, 1, 0] },
+        },
+        closed: {
+          $sum: { $cond: [{ $eq: ["$status", "CLOSED_RESOLVED"] }, 1, 0] },
+        },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  // Aggregate enforcements closed within date range
+  const closedByPeriod = await Enforcement.aggregate([
+    {
+      $match: {
+        closedAt: { $gte: start, $lte: end },
+      },
+    },
+    {
+      $group: {
+        _id: groupBy === "day" 
+          ? { $dateToString: { format: "%Y-%m-%d", date: "$closedAt" } }
+          : groupBy === "week" 
+            ? { $isoWeek: "$closedAt" }
+            : { $month: "$closedAt" },
+        count: { $sum: 1 },
+        totalPenalty: { $sum: "$penaltyAmount" },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  // Calculate totals for the period
+  const periodTotals = await Enforcement.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: start, $lte: end },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalCreated: { $sum: 1 },
+        totalPenalty: { $sum: "$penaltyAmount" },
+        avgRiskScore: { $avg: "$aiRiskScore" },
+      },
+    },
+  ]);
+
+  return {
+    dateRange: { start, end, groupBy },
+    createdByPeriod,
+    closedByPeriod,
+    periodSummary: periodTotals[0] || { totalCreated: 0, totalPenalty: 0, avgRiskScore: null },
+  };
+};
