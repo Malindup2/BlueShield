@@ -1,5 +1,6 @@
 const Hazard = require("../models/Hazard");
 const Report = require("../models/Report");
+const Zone = require("../models/Zone");
 const marineService = require("./marineService");
 
 
