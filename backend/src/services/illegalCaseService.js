@@ -111,3 +111,139 @@ exports.deleteReviewedCase = async ({ reportId }) => {
 
   return { reportId, illegalCaseId: illegalCase ? illegalCase._id : null };
 };
+
+// ILLEGAL CASE REVIEW RECORD
+
+ // Creates a new illegal case review record from a pending ILLEGAL_FISHING report.
+
+exports.createCase = async ({ reportId, payload, actorId }) => {
+  const report = await Report.findById(reportId);
+  if (!report) {
+    const err = new Error("Report not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (report.reportType !== "ILLEGAL_FISHING") {
+    const err = new Error("Only ILLEGAL_FISHING reports can be reviewed here");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const existing = await IllegalCase.findOne({ baseReport: reportId });
+  if (existing) {
+    const err = new Error("An illegal case review record already exists for this report");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const newCase = await IllegalCase.create({
+    baseReport: reportId,
+    title: payload.title,
+    description: payload.description,
+    vesselId: payload.vesselId,      // stored as "IMO-XXXXXXX" format
+    vesselType: payload.vesselType,
+    severity: payload.severity,
+    status: "OPEN",                  // always starts as OPEN
+    assignedOfficer: null,           // no officer assigned at creation
+    createdBy: actorId,
+  });
+
+  return newCase;
+};
+
+
+ // Updates an existing illegal case review record.
+ 
+exports.updateCase = async ({ caseId, payload, actorId }) => {
+  const illegalCase = await IllegalCase.findById(caseId);
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (illegalCase.status !== "OPEN") {
+    const err = new Error("Record can only be updated when status is OPEN");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Only allow updating these fields — status and officer are not editable here
+  const allowedUpdates = ["title", "description", "vesselId", "vesselType", "severity"];
+  allowedUpdates.forEach((field) => {
+    if (payload[field] !== undefined) {
+      illegalCase[field] = payload[field];
+    }
+  });
+
+  await illegalCase.save();
+  return illegalCase;
+};
+
+
+ // Returns all illegal case review records 
+
+exports.listCases = async ({ query }) => {
+  const page = Math.max(parseInt(query.page || "1", 10), 1);
+  const limit = Math.min(Math.max(parseInt(query.limit || "10", 10), 1), 50);
+  const skip = (page - 1) * limit;
+
+  const filter = {};
+  if (query.status) filter.status = query.status;
+  if (query.severity) filter.severity = query.severity;
+
+  const sort = query.sort || "-createdAt";
+
+  const [items, total] = await Promise.all([
+    IllegalCase.find(filter)
+      .populate("baseReport", "title reportType reportedBy")
+      .populate("createdBy", "name email")
+      .populate("assignedOfficer", "name email")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit),
+    IllegalCase.countDocuments(filter),
+  ]);
+
+  return { page, limit, total, items };
+};
+
+// get details of a single illegal case review record.
+
+exports.getCaseById = async (caseId) => {
+  const doc = await IllegalCase.findById(caseId)
+    .populate("baseReport")
+    .populate("createdBy", "name email role")
+    .populate("assignedOfficer", "name email role")
+    .populate("escalatedBy", "name email");
+
+  if (!doc) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  return doc;
+};
+
+
+ // Deletes an illegal case review record.
+ 
+exports.deleteCase = async ({ caseId }) => {
+  const illegalCase = await IllegalCase.findById(caseId);
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (illegalCase.status === "ESCALATED") {
+    const err = new Error(
+      "Cannot delete a record while it is escalated."
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  await IllegalCase.findByIdAndDelete(caseId);
+  return { id: caseId };
+};
