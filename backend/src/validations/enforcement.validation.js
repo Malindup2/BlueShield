@@ -154,3 +154,83 @@ exports.deleteEvidence = (req) => {
   if (!isObjectId(req.params.evidenceId)) errors.push("evidenceId must be a valid ObjectId");
   return { error: errors.length ? errors : null };
 };
+
+const TEAM_ROLES = ["LEAD_INVESTIGATOR", "INVESTIGATOR", "EVIDENCE_HANDLER", "SURVEILLANCE", "LEGAL_LIAISON", "SUPPORT"];
+const TEAM_STATUS = ["ACTIVE", "ON_LEAVE", "RELIEVED"];
+
+exports.addTeamMember = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.enforcementId)) errors.push("enforcementId must be a valid ObjectId");
+
+  const body = req.body || {};
+
+  // Required fields
+  if (!body.officerId || !isObjectId(body.officerId)) {
+    errors.push("officerId is required and must be a valid ObjectId");
+  }
+  if (!body.role || !TEAM_ROLES.includes(body.role)) {
+    errors.push(`role is required and must be one of: ${TEAM_ROLES.join(", ")}`);
+  }
+
+  // Optional field validations
+  if (body.status && !TEAM_STATUS.includes(body.status)) {
+    errors.push(`status must be one of: ${TEAM_STATUS.join(", ")}`);
+  }
+  if (body.department && body.department.length > 100) {
+    errors.push("department must be 100 characters or less");
+  }
+  if (body.specialization && body.specialization.length > 100) {
+    errors.push("specialization must be 100 characters or less");
+  }
+  if (body.badgeNumber && body.badgeNumber.length > 50) {
+    errors.push("badgeNumber must be 50 characters or less");
+  }
+  if (body.contactNumber && body.contactNumber.length > 20) {
+    errors.push("contactNumber must be 20 characters or less");
+  }
+  if (body.hoursLogged !== undefined && (typeof body.hoursLogged !== "number" || body.hoursLogged < 0)) {
+    errors.push("hoursLogged must be a number >= 0");
+  }
+  if (body.responsibilities && !Array.isArray(body.responsibilities)) {
+    errors.push("responsibilities must be an array of strings");
+  }
+  if (body.notes && body.notes.length > 500) {
+    errors.push("notes must be 500 characters or less");
+  }
+
+  return { error: errors.length ? errors : null };
+};
+
+exports.updateTeamMember = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.enforcementId)) errors.push("enforcementId must be a valid ObjectId");
+  if (!isObjectId(req.params.memberId)) errors.push("memberId must be a valid ObjectId");
+
+  const body = req.body || {};
+
+  // Optional field validations
+  if (body.role && !TEAM_ROLES.includes(body.role)) {
+    errors.push(`role must be one of: ${TEAM_ROLES.join(", ")}`);
+  }
+  if (body.status && !TEAM_STATUS.includes(body.status)) {
+    errors.push(`status must be one of: ${TEAM_STATUS.join(", ")}`);
+  }
+  if (body.hoursLogged !== undefined && (typeof body.hoursLogged !== "number" || body.hoursLogged < 0)) {
+    errors.push("hoursLogged must be a number >= 0");
+  }
+  if (body.responsibilities && !Array.isArray(body.responsibilities)) {
+    errors.push("responsibilities must be an array of strings");
+  }
+  if (body.notes && body.notes.length > 500) {
+    errors.push("notes must be 500 characters or less");
+  }
+
+  return { error: errors.length ? errors : null };
+};
+
+exports.deleteTeamMember = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.enforcementId)) errors.push("enforcementId must be a valid ObjectId");
+  if (!isObjectId(req.params.memberId)) errors.push("memberId must be a valid ObjectId");
+  return { error: errors.length ? errors : null };
+};
