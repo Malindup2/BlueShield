@@ -204,7 +204,7 @@ exports.closeEnforcement = async ({ enforcementId, outcome, penaltyAmount, notes
   return updated;
 };
 
-// ============================================================================
+
 
 
 /**
@@ -488,4 +488,54 @@ exports.deleteTeamMember = async ({ enforcementId, memberId, actorId }) => {
   await Enforcement.findByIdAndUpdate(enforcementId, { updatedBy: actorId });
 
   return member;
+};
+
+
+// DASHBOARD STATISTICS - Enforcement Analytics
+/**
+ * Get basic enforcement statistics
+ * Counts by status, priority, and outcome
+ * @returns {Object} Statistics object with counts
+ */
+exports.getBasicStatistics = async () => {
+  // Count by status
+  const statusCounts = await Enforcement.aggregate([
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+
+  // Count by priority
+  const priorityCounts = await Enforcement.aggregate([
+    { $group: { _id: "$priority", count: { $sum: 1 } } },
+  ]);
+
+  // Count by outcome
+  const outcomeCounts = await Enforcement.aggregate([
+    { $group: { _id: "$outcome", count: { $sum: 1 } } },
+  ]);
+
+  // Total count
+  const totalCount = await Enforcement.countDocuments();
+
+  // Format results into objects for easier access
+  const byStatus = {};
+  statusCounts.forEach((s) => {
+    byStatus[s._id] = s.count;
+  });
+
+  const byPriority = {};
+  priorityCounts.forEach((p) => {
+    byPriority[p._id] = p.count;
+  });
+
+  const byOutcome = {};
+  outcomeCounts.forEach((o) => {
+    byOutcome[o._id] = o.count;
+  });
+
+  return {
+    total: totalCount,
+    byStatus,
+    byPriority,
+    byOutcome,
+  };
 };
