@@ -598,9 +598,9 @@ exports.getStatisticsByDateRange = async ({ startDate, endDate, groupBy = "day" 
     },
     {
       $group: {
-        _id: groupBy === "day" 
+        _id: groupBy === "day"
           ? { $dateToString: { format: "%Y-%m-%d", date: "$closedAt" } }
-          : groupBy === "week" 
+          : groupBy === "week"
             ? { $isoWeek: "$closedAt" }
             : { $month: "$closedAt" },
         count: { $sum: 1 },
