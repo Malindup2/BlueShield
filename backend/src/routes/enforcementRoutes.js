@@ -41,7 +41,16 @@ router.post(
   ctrl.generateRiskScore
 );
 
-// EVIDENCE ROUTES - Chain of Custody Management
+// EVIDENCE ROUTES - Separate Model (like Sanduni's Zone pattern)
+// Get all evidence items for an enforcement
+router.get(
+  "/:enforcementId/evidence",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"),
+  validate(v.getById),
+  ctrl.getEvidence
+);
+
 // Add new evidence item
 router.post(
   "/:enforcementId/evidence",
@@ -67,6 +76,43 @@ router.delete(
   authorize("OFFICER", "SYSTEM_ADMIN"),
   validate(v.deleteEvidence),
   ctrl.deleteEvidence
+);
+
+// TEAM ROUTES - Separate Model (like Minuli's CaseReviewd pattern)
+// Get all team members for an enforcement
+router.get(
+  "/:enforcementId/team",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"),
+  validate(v.getById),
+  ctrl.getTeam
+);
+
+// Add new team member
+router.post(
+  "/:enforcementId/team",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN"),
+  validate(v.addTeamMember),
+  ctrl.addTeamMember
+);
+
+// Update team member
+router.patch(
+  "/:enforcementId/team/:memberId",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN"),
+  validate(v.updateTeamMember),
+  ctrl.updateTeamMember
+);
+
+// Delete team member
+router.delete(
+  "/:enforcementId/team/:memberId",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN"),
+  validate(v.deleteTeamMember),
+  ctrl.deleteTeamMember
 );
 
 module.exports = router;
