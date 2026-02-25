@@ -1,12 +1,8 @@
 const mongoose = require("mongoose");
 
-// ============================================================================
+
 // ENFORCEMENT MODEL - Maritime Law Enforcement Case Management
-// ============================================================================
-// This model tracks enforcement actions taken against illegal fishing cases.
-// It supports: actions logging, evidence chain-of-custody, team assignment,
-// AI risk assessment, and full case lifecycle management.
-// ============================================================================
+
 
 // ----- ENUMS -----
 const ACTION_TYPES = ["INSPECTION", "FINE_ISSUED", "WARNING", "ARREST", "SEIZURE"];
@@ -55,82 +51,67 @@ const actionSchema = new mongoose.Schema(
   { _id: true }
 );
 
-// ============================================================================
 // EVIDENCE SCHEMA - Chain of Custody Tracking
-// ============================================================================
-// Comprehensive evidence management for legal proceedings.
-// Tracks: collection, storage, verification, and chain of custody.
-// ============================================================================
 const evidenceSchema = new mongoose.Schema(
   {
-    // Auto-generated reference number for evidence tracking
     referenceNumber: {
       type: String,
       trim: true,
     },
-    // Type of evidence collected
     evidenceType: {
       type: String,
       enum: EVIDENCE_TYPES,
       required: [true, "Evidence type is required"],
     },
-    // Detailed description of the evidence item
     description: {
       type: String,
       trim: true,
       required: [true, "Evidence description is required"],
       maxlength: 500,
     },
-    // Physical storage location for chain of custody
     storageLocation: {
       type: String,
       trim: true,
       maxlength: 200,
     },
-    // Method used to collect the evidence
     collectionMethod: {
       type: String,
       trim: true,
       maxlength: 300,
     },
-    // Current condition of the evidence
     condition: {
       type: String,
       enum: EVIDENCE_CONDITIONS,
       default: "INTACT",
     },
-    // Whether evidence is in a sealed container/bag
     isSealed: {
       type: Boolean,
       default: false,
     },
-    // Seal identification number for tamper detection
     sealNumber: {
       type: String,
       trim: true,
     },
-    // Officer who collected the evidence
     collectedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
-    // Timestamp when evidence was collected
     collectedAt: {
       type: Date,
       default: Date.now,
     },
-    // Officer who verified evidence authenticity
+    
     verifiedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
-    // Timestamp when evidence was verified
+    
     verifiedAt: {
       type: Date,
       default: null,
     },
-    // File attachments (photos, documents, etc.)
+   
     attachments: [
       {
         url: { type: String, trim: true },
@@ -138,7 +119,7 @@ const evidenceSchema = new mongoose.Schema(
         uploadedAt: { type: Date, default: Date.now },
       },
     ],
-    // Additional notes about the evidence
+    
     notes: {
       type: String,
       trim: true,
@@ -160,6 +141,94 @@ const riskAssessmentSchema = new mongoose.Schema(
     assessedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { _id: true }
+);
+
+
+// TEAM MEMBER SCHEMA - Multi-Officer Operations
+
+const teamMemberSchema = new mongoose.Schema(
+  {
+    
+    officer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Officer is required"],
+    },
+    
+    role: {
+      type: String,
+      enum: TEAM_ROLES,
+      required: [true, "Team role is required"],
+    },
+    
+    status: {
+      type: String,
+      enum: ["ACTIVE", "ON_LEAVE", "REASSIGNED"],
+      default: "ACTIVE",
+    },
+    
+    department: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
+    
+    specialization: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
+    
+    badgeNumber: {
+      type: String,
+      trim: true,
+    },
+    
+    contactNumber: {
+      type: String,
+      trim: true,
+    },
+    
+    hoursLogged: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    
+    responsibilities: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+    },
+    
+    assignedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    
+    assignedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    
+    relievedAt: {
+      type: Date,
+      default: null,
+    },
+    
+    relievedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
+  },
+  { _id: true, timestamps: true }
 );
 
 const enforcementSchema = new mongoose.Schema(
@@ -196,6 +265,9 @@ const enforcementSchema = new mongoose.Schema(
 
     // Array of evidence items with chain of custody tracking
     evidence: [evidenceSchema],
+
+    // Array of team members assigned to this enforcement
+    assignedTeam: [teamMemberSchema],
 
     // Latest AI risk score (quick access)
     aiRiskScore: {

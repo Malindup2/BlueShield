@@ -75,3 +75,82 @@ exports.close = (req) => {
 
   return { error: errors.length ? errors : null };
 };
+
+// EVIDENCE VALIDATIONS
+
+const EVIDENCE_TYPES = ["PHOTOGRAPH", "VIDEO", "DOCUMENT", "PHYSICAL_ITEM", "TESTIMONY", "DIGITAL_LOG"];
+const EVIDENCE_CONDITIONS = ["INTACT", "DAMAGED", "DETERIORATED", "SEALED"];
+
+
+exports.addEvidence = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.enforcementId)) errors.push("enforcementId must be a valid ObjectId");
+
+  const body = req.body || {};
+
+  // Required fields
+  if (!body.evidenceType || !EVIDENCE_TYPES.includes(body.evidenceType)) {
+    errors.push(`evidenceType is required and must be one of: ${EVIDENCE_TYPES.join(", ")}`);
+  }
+  if (!body.description || typeof body.description !== "string" || body.description.trim().length === 0) {
+    errors.push("description is required");
+  }
+  if (body.description && body.description.length > 500) {
+    errors.push("description must be 500 characters or less");
+  }
+
+  // Optional field validations
+  if (body.storageLocation && body.storageLocation.length > 200) {
+    errors.push("storageLocation must be 200 characters or less");
+  }
+  if (body.collectionMethod && body.collectionMethod.length > 300) {
+    errors.push("collectionMethod must be 300 characters or less");
+  }
+  if (body.condition && !EVIDENCE_CONDITIONS.includes(body.condition)) {
+    errors.push(`condition must be one of: ${EVIDENCE_CONDITIONS.join(", ")}`);
+  }
+  if (body.isSealed !== undefined && typeof body.isSealed !== "boolean") {
+    errors.push("isSealed must be a boolean");
+  }
+  if (body.notes && body.notes.length > 500) {
+    errors.push("notes must be 500 characters or less");
+  }
+
+  return { error: errors.length ? errors : null };
+};
+
+
+exports.updateEvidence = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.enforcementId)) errors.push("enforcementId must be a valid ObjectId");
+  if (!isObjectId(req.params.evidenceId)) errors.push("evidenceId must be a valid ObjectId");
+
+  const body = req.body || {};
+
+  // Optional field validations (same as add, but all optional)
+  if (body.evidenceType && !EVIDENCE_TYPES.includes(body.evidenceType)) {
+    errors.push(`evidenceType must be one of: ${EVIDENCE_TYPES.join(", ")}`);
+  }
+  if (body.description && body.description.length > 500) {
+    errors.push("description must be 500 characters or less");
+  }
+  if (body.condition && !EVIDENCE_CONDITIONS.includes(body.condition)) {
+    errors.push(`condition must be one of: ${EVIDENCE_CONDITIONS.join(", ")}`);
+  }
+  if (body.isSealed !== undefined && typeof body.isSealed !== "boolean") {
+    errors.push("isSealed must be a boolean");
+  }
+  if (body.verified !== undefined && typeof body.verified !== "boolean") {
+    errors.push("verified must be a boolean");
+  }
+
+  return { error: errors.length ? errors : null };
+};
+
+
+exports.deleteEvidence = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.enforcementId)) errors.push("enforcementId must be a valid ObjectId");
+  if (!isObjectId(req.params.evidenceId)) errors.push("evidenceId must be a valid ObjectId");
+  return { error: errors.length ? errors : null };
+};

@@ -41,4 +41,32 @@ router.post(
   ctrl.generateRiskScore
 );
 
+// EVIDENCE ROUTES - Chain of Custody Management
+// Add new evidence item
+router.post(
+  "/:enforcementId/evidence",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN"),
+  validate(v.addEvidence),
+  ctrl.addEvidence
+);
+
+// Update existing evidence item
+router.patch(
+  "/:enforcementId/evidence/:evidenceId",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN"),
+  validate(v.updateEvidence),
+  ctrl.updateEvidence
+);
+
+// Delete evidence item
+router.delete(
+  "/:enforcementId/evidence/:evidenceId",
+  protect,
+  authorize("OFFICER", "SYSTEM_ADMIN"),
+  validate(v.deleteEvidence),
+  ctrl.deleteEvidence
+);
+
 module.exports = router;
