@@ -1,6 +1,9 @@
 const hazardService = require("../services/hazardService");
 
-//create a hazard record from a verified hazard category report 
+
+/**
+ * Create a hazard case from a verified report.
+ */
 exports.createFromReport = async (req, res) => {
   try {
     const doc = await hazardService.createFromReport({
@@ -14,7 +17,10 @@ exports.createFromReport = async (req, res) => {
   }
 };
 
-//list all hazard cases
+
+/**
+ * List hazard cases (supports pagination and filters).
+ */
 exports.list = async (req, res) => {
   try {
     const result = await hazardService.list({ query: req.query });
@@ -25,7 +31,9 @@ exports.list = async (req, res) => {
 };
 
 
-// get one hazard record using id 
+/**
+ * Get a single hazard by id.
+ */
 exports.getById = async (req, res) => {
   try {
     const doc = await hazardService.getById(req.params.id);
@@ -37,7 +45,9 @@ exports.getById = async (req, res) => {
 
 
 
-// update an existing hazard record
+/**
+ * Update hazard fields (resolution handled separately).
+ */
 exports.update = async (req, res) => {
   try {
     const doc = await hazardService.update({
@@ -52,7 +62,9 @@ exports.update = async (req, res) => {
 };
 
 
-//check current weather condition
+/**
+ * Fetch and store latest marine/weather snapshot for a hazard.
+ */
 exports.weather = async (req, res) => {
   try {
     const result = await hazardService.fetchWeatherAndSave({
@@ -66,6 +78,9 @@ exports.weather = async (req, res) => {
 };
 
 
+/**
+ * Resolve hazard and apply related workflow updates.
+ */
 exports.resolve = async (req, res) => {
   try {
     const doc = await hazardService.resolve({
@@ -74,6 +89,21 @@ exports.resolve = async (req, res) => {
       actorId: req.user._id,
     });
     res.json(doc);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+
+
+
+/**
+ * Delete hazard (allowed only when business rules are satisfied).
+ */
+exports.remove = async (req, res) => {
+  try {
+    const result = await hazardService.deleteIfAllowed({ id: req.params.id });
+    res.json({ message: "Deleted", ...result });
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
   }

@@ -69,4 +69,13 @@ router.patch(
 );
 
 
+// Delete a hazardrecord
+router.delete(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.getById),
+  hazardCtrl.remove
+);
+
 module.exports = router;

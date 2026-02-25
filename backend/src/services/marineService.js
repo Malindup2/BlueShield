@@ -3,6 +3,12 @@ const { computeRiskAndAdvisory } = require("../utils/marineAdvisory");
 
 const isFiniteNumber = (v) => typeof v === "number" && Number.isFinite(v);
 
+
+
+/**
+ * Picks the hourly index closest to "now".
+ * We use this so the advisory reflects current conditions, not just the first hour returned.
+ */
 const pickClosestIndex = (times = []) => {
   if (!Array.isArray(times) || times.length === 0) return 0;
 
@@ -23,6 +29,11 @@ const pickClosestIndex = (times = []) => {
   return bestIdx;
 };
 
+
+/**
+ * Fetch marine conditions from Open-Meteo and return a stored snapshot.
+ * Includes derived riskLevel/advisory for easy UI display and reporting.
+ */
 exports.fetchMarineConditions = async ({ lat, lng }) => {
   if (!isFiniteNumber(lat) || !isFiniteNumber(lng)) {
     const err = new Error("Invalid coordinates for marine API");
