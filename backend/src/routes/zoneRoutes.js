@@ -18,6 +18,26 @@ router.post(
 );
 
 
+// List zones (GeoJSON for map)
+router.get(
+  "/",
+  protect, 
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN", "FISHERMAN", "OFFICER"),
+  validate(v.list),
+  zonectrl.list
+);
+
+
+// Get zone
+router.get(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.getById),
+  zonectrl.getById
+);
+
+
 
 
 module.exports = router;

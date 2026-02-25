@@ -31,3 +31,28 @@ exports.create = (req) => {
 
   return { error: errors.length ? errors : null };
 };
+
+
+
+
+exports.list = (req) => {
+  const errors = [];
+  const q = req.query || {};
+
+  const page = parseInt(q.page || "1", 10);
+  const limit = parseInt(q.limit || "10", 10);
+  if (Number.isNaN(page) || page < 1) errors.push("page must be >= 1");
+  if (Number.isNaN(limit) || limit < 1 || limit > 50) errors.push("limit must be 1..50");
+
+  if (q.status && !ZONE_STATUS.includes(q.status)) errors.push("Invalid status");
+  if (q.zoneType && !ZONE_TYPES.includes(q.zoneType)) errors.push("Invalid zoneType");
+
+  return { error: errors.length ? errors : null };
+};
+
+
+exports.getById = (req) => {
+  const errors = [];
+  if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");
+  return { error: errors.length ? errors : null };
+};
