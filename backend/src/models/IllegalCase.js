@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-// New statuses 
+// statuses 
 const CASE_STATUSES = ["OPEN", "ESCALATED", "RESOLVED"];
 const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
