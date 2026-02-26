@@ -8,7 +8,7 @@ const v = require("../validations/zone.validation");
 
 const zonectrl = require("../controllers/zoneController");
 
-// Create zone
+// Create a zone for a hazard
 router.post(
   "/",
   protect,
@@ -28,7 +28,7 @@ router.get(
 );
 
 
-// Get zone
+// Get zone by id
 router.get(
   "/:id",
   protect,
@@ -38,7 +38,7 @@ router.get(
 );
 
 
-// Update zone (disable/edit)
+// Update zone 
 router.patch(
   "/:id",
   protect,
@@ -48,7 +48,7 @@ router.patch(
 );
 
 
-// Delete zone (optional cleanup)
+// Delete zone 
 router.delete(
   "/:id",
   protect,

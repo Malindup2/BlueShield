@@ -1,6 +1,9 @@
 const zoneService = require("../services/zoneService");
 
 
+/**
+ * Create a zone for a hazard (one zone per hazard).
+ */
 exports.create = async (req, res) => {
   try {
     const doc = await zoneService.create({
@@ -14,7 +17,9 @@ exports.create = async (req, res) => {
 };
 
 
-
+/**
+ * List zones (supports pagination/filters and returns GeoJSON for map).
+ */
 exports.list = async (req, res) => {
   try {
     const result = await zoneService.list({ query: req.query });
@@ -26,6 +31,9 @@ exports.list = async (req, res) => {
 
 
 
+/**
+ * Get a single zone by id.
+ */
 exports.getById = async (req, res) => {
   try {
     const doc = await zoneService.getById(req.params.id);
@@ -36,7 +44,9 @@ exports.getById = async (req, res) => {
 };
 
 
-
+/**
+ * Update zone fields (status/type/message/center/radius).
+ */
 exports.update = async (req, res) => {
   try {
     const doc = await zoneService.update({
@@ -50,7 +60,9 @@ exports.update = async (req, res) => {
   }
 };
 
-
+/**
+ * Delete a zone.
+ */
 exports.remove = async (req, res) => {
   try {
     const deleted = await zoneService.remove({ id: req.params.id });

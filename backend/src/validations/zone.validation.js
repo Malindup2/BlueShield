@@ -1,8 +1,19 @@
+/**
+ * Zone request validators
+ * - Centralizes request validation rules for zones
+ * - Returns { error: string[] | null } for middleware
+ */
+
+
 const isObjectId = (v) => typeof v === "string" && /^[a-fA-F0-9]{24}$/.test(v);
 
 const ZONE_STATUS = ["ACTIVE", "DISABLED"];
 const ZONE_TYPES = ["RESTRICTED", "DANGEROUS"];
 
+
+/**
+ * Validate longitude/latitude array [lng, lat].
+ */
 const isLngLat = (arr) =>
   Array.isArray(arr) &&
   arr.length === 2 &&
@@ -13,6 +24,10 @@ const isLngLat = (arr) =>
   arr[1] >= -90 &&
   arr[1] <= 90;
 
+
+/**
+ * Validate zone creation payload.
+ */
 exports.create = (req) => {
   const errors = [];
   const body = req.body || {};
@@ -34,7 +49,9 @@ exports.create = (req) => {
 
 
 
-
+/**
+ * Validate zone list query parameters.
+ */
 exports.list = (req) => {
   const errors = [];
   const q = req.query || {};
@@ -51,6 +68,9 @@ exports.list = (req) => {
 };
 
 
+/**
+ * Validate zone id parameter.
+ */
 exports.getById = (req) => {
   const errors = [];
   if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");
@@ -58,7 +78,9 @@ exports.getById = (req) => {
 };
 
 
-
+/**
+ * Validate zone update payload.
+ */
 exports.update = (req) => {
   const errors = [];
   if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");

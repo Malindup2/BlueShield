@@ -11,7 +11,9 @@ const HANDLING_STATUS = ["OPEN", "MONITORING", "MITIGATION_PLANNED", "MITIGATION
 const SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 const HAZARD_CATEGORIES = ["WEATHER", "POLLUTION", "DEBRIS", "OBSTRUCTION", "OTHER"];
 
-
+/**
+ * Validate hazard creation payload.
+ */
 exports.fromReport = (req) => {
   const errors = [];
   if (!isObjectId(req.params.reportId)) errors.push("reportId must be a valid ObjectId");
@@ -44,7 +46,9 @@ exports.list = (req) => {
 };
 
 
-
+/**
+ * Validate hazard id parameter.
+ */
 exports.getById = (req) => {
   const errors = [];
   if (!isObjectId(req.params.id)) errors.push("id must be a valid ObjectId");

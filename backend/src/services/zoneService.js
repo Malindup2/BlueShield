@@ -1,7 +1,13 @@
+/**
+ * Zone service
+ * - Manages zones linked to hazards
+ * - Returns GeoJSON output for map consumption
+ */
+
 const Zone = require("../models/Zone");
 
 
-
+// Convert zone list to a minimal GeoJSON FeatureCollection for map renderin
 const toGeoJSON = (zones) => ({
   type: "FeatureCollection",
   features: zones.map((z) => ({
@@ -22,7 +28,11 @@ const toGeoJSON = (zones) => ({
 });
 
 
-
+/**
+ * Create a zone for a hazard.
+ * Rules enforced here:
+ * - One zone per hazard (sourceHazard unique)
+ */
 exports.create = async ({ payload, actorId }) => {
   const existing = await Zone.findOne({ sourceHazard: payload.sourceHazard });
   if (existing) {
@@ -48,6 +58,10 @@ exports.create = async ({ payload, actorId }) => {
 
 
 
+/**
+ * List zones with pagination and filters.
+ * Returns both items and a GeoJSON version for map rendering.
+ */
 exports.list = async ({ query }) => {
   const page = Math.max(parseInt(query.page || "1", 10), 1);
   const limit = Math.min(Math.max(parseInt(query.limit || "10", 10), 1), 50);
@@ -77,7 +91,9 @@ exports.list = async ({ query }) => {
 
 
 
-
+/**
+ * Get a single zone by id.
+ */
 exports.getById = async (id) => {
   const doc = await Zone.findById(id).populate("sourceHazard", "hazardCategory severity");
   if (!doc) {
@@ -89,7 +105,10 @@ exports.getById = async (id) => {
 };
 
 
-
+/**
+ * Update zone fields.
+ * If center is provided, it is stored as a GeoJSON Point.
+ */
 exports.update = async ({ id, payload, actorId }) => {
   const updateDoc = { $set: { ...payload, updatedBy: actorId } };
   if (payload.center) updateDoc.$set.center = { type: "Point", coordinates: payload.center };
@@ -104,6 +123,9 @@ exports.update = async ({ id, payload, actorId }) => {
 };
 
 
+/**
+ * Delete a zone by id.
+ */
 exports.remove = async ({ id }) => {
   const deleted = await Zone.findByIdAndDelete(id);
   if (!deleted) {
