@@ -2,11 +2,12 @@ const Enforcement = require("../models/Enforcement");
 const IllegalCase = require("../models/IllegalCase");
 const Evidence = require("../models/Evidence");
 const TeamMember = require("../models/TeamMember");
+const cloudinary = require("../config/cloudinary");
 
 
 //
 
-exports.create = async ({ relatedCase, leadOfficer, actorId }) => {
+exports.create = async ({ relatedCase, leadOfficer, priority, notes, penaltyAmount, courtDate, courtReference, actorId }) => {
   // one enforcement per case 
   const existing = await Enforcement.findOne({ relatedCase });
   if (existing) {
@@ -26,6 +27,11 @@ exports.create = async ({ relatedCase, leadOfficer, actorId }) => {
   return Enforcement.create({
     relatedCase,
     leadOfficer,
+    ...(priority && { priority }),
+    ...(notes && { notes }),
+    ...(penaltyAmount != null && { penaltyAmount }),
+    ...(courtDate && { courtDate }),
+    ...(courtReference && { courtReference }),
     updatedBy: actorId,
   });
 };
@@ -213,7 +219,7 @@ exports.closeEnforcement = async ({ enforcementId, outcome, penaltyAmount, notes
  * @param {Object} params - Contains enforcementId, evidenceData, actorId
  * @returns {Object} Newly created evidence document
  */
-exports.addEvidence = async ({ enforcementId, evidenceData, actorId }) => {
+exports.addEvidence = async ({ enforcementId, evidenceData, attachments, actorId }) => {
   // Verify enforcement exists
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
@@ -226,6 +232,7 @@ exports.addEvidence = async ({ enforcementId, evidenceData, actorId }) => {
   const newEvidence = await Evidence.create({
     enforcement: enforcementId,
     ...evidenceData,
+    attachments: attachments || [],
     collectedBy: actorId,
     collectedAt: new Date(),
   });
@@ -261,7 +268,7 @@ exports.getEvidenceByEnforcement = async (enforcementId) => {
  * @param {Object} params - Contains enforcementId, evidenceId, payload, actorId
  * @returns {Object} Updated evidence document
  */
-exports.updateEvidence = async ({ enforcementId, evidenceId, payload, actorId }) => {
+exports.updateEvidence = async ({ enforcementId, evidenceId, payload, newAttachments, actorId }) => {
   // Verify enforcement exists
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
@@ -295,9 +302,15 @@ exports.updateEvidence = async ({ enforcementId, evidenceId, payload, actorId })
     updateData.verifiedAt = new Date();
   }
 
+  // Push any newly uploaded Cloudinary files into the attachments array
+  const updateOps = { $set: updateData };
+  if (newAttachments && newAttachments.length > 0) {
+    updateOps.$push = { attachments: { $each: newAttachments } };
+  }
+
   const updated = await Evidence.findByIdAndUpdate(
     evidenceId,
-    { $set: updateData },
+    updateOps,
     { new: true, runValidators: true }
   );
 
@@ -328,6 +341,15 @@ exports.deleteEvidence = async ({ enforcementId, evidenceId, actorId }) => {
     const err = new Error("Evidence not found for this enforcement");
     err.statusCode = 404;
     throw err;
+  }
+
+  // Delete all Cloudinary files attached to this evidence (cleanup)
+  if (evidence.attachments && evidence.attachments.length > 0) {
+    await Promise.allSettled(
+      evidence.attachments
+        .filter((a) => a.publicId)
+        .map((a) => cloudinary.uploader.destroy(a.publicId, { resource_type: "auto" }))
+    );
   }
 
   await Evidence.findByIdAndDelete(evidenceId);

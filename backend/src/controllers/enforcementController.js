@@ -7,6 +7,11 @@ exports.create = async (req, res) => {
   try {
     const created = await enforcementService.create({
       relatedCase: req.body.relatedCase,
+      priority: req.body.priority,
+      notes: req.body.notes,
+      penaltyAmount: req.body.penaltyAmount,
+      courtDate: req.body.courtDate,
+      courtReference: req.body.courtReference,
       leadOfficer: req.user._id,
       actorId: req.user._id,
     });
@@ -179,13 +184,21 @@ exports.getEvidence = async (req, res) => {
 /**
  * Add evidence item to an enforcement record
  * POST /api/enforcements/:enforcementId/evidence
- * Body: { evidenceType, description, storageLocation, collectionMethod, condition, isSealed, sealNumber, notes }
+ * Body (form-data): evidenceType, description, [files], storageLocation, etc.
  */
 exports.addEvidence = async (req, res) => {
   try {
+    // Map Cloudinary-uploaded files to structured attachment objects
+    const attachments = (req.files || []).map((f) => ({
+      url: f.path,           // Cloudinary secure URL
+      publicId: f.filename,  // Cloudinary public_id (used for deletion)
+      filename: f.originalname,
+    }));
+
     const evidence = await enforcementService.addEvidence({
       enforcementId: req.params.enforcementId,
       evidenceData: req.body,
+      attachments,
       actorId: req.user._id,
     });
     res.status(201).json(evidence);
@@ -197,14 +210,22 @@ exports.addEvidence = async (req, res) => {
 /**
  * Update existing evidence item
  * PATCH /api/enforcements/:enforcementId/evidence/:evidenceId
- * Body: { evidenceType?, description?, storageLocation?, condition?, isSealed?, sealNumber?, notes?, verified? }
+ * Body (form-data): evidenceType?, description?, [files], condition?, isSealed?, verified?
  */
 exports.updateEvidence = async (req, res) => {
   try {
+    // Map any newly uploaded files
+    const newAttachments = (req.files || []).map((f) => ({
+      url: f.path,
+      publicId: f.filename,
+      filename: f.originalname,
+    }));
+
     const evidence = await enforcementService.updateEvidence({
       enforcementId: req.params.enforcementId,
       evidenceId: req.params.evidenceId,
       payload: req.body,
+      newAttachments,
       actorId: req.user._id,
     });
     res.json(evidence);

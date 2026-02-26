@@ -1,25 +1,11 @@
 const mongoose = require("mongoose");
-
-// ============================================================================
-// ENFORCEMENT MODEL - Maritime Law Enforcement Case Management
-// ============================================================================
-// This model tracks enforcement actions taken against illegal fishing cases.
-// It supports: actions logging, AI risk assessment, and case lifecycle.
-// Evidence and TeamMember are separate models (like Sanduni's Zone, Minuli's CaseReviewd).
-// ============================================================================
-
 // ----- ENUMS -----
 const ACTION_TYPES = ["INSPECTION", "FINE_ISSUED", "WARNING", "ARREST", "SEIZURE"];
 const ENF_STATUS = ["OPEN", "COURT_PENDING", "CLOSED_RESOLVED"];
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 const OUTCOMES = ["PENDING", "WARNING_ISSUED", "FINE_COLLECTED", "EQUIPMENT_SEIZED", "VESSEL_SEIZED", "ARREST_MADE", "CASE_DISMISSED"];
 
-// ============================================================================
-// ACTION SCHEMA - Embedded sub-document for enforcement actions
-// ============================================================================
-// Tracks actions like inspections, fines, arrests, seizures.
-// Embedded because actions are always accessed with enforcement.
-// ============================================================================
+
 const actionSchema = new mongoose.Schema(
   {
     actionType: {
@@ -54,12 +40,7 @@ const actionSchema = new mongoose.Schema(
   { _id: true }
 );
 
-// ============================================================================
-// RISK ASSESSMENT SCHEMA - AI Risk Score History
-// ============================================================================
-// Tracks every AI risk assessment (history).
-// Embedded because assessments are always accessed with enforcement.
-// ============================================================================
+
 const riskAssessmentSchema = new mongoose.Schema(
   {
     riskScore: { type: Number, min: 0, max: 100, required: true },
@@ -73,9 +54,7 @@ const riskAssessmentSchema = new mongoose.Schema(
   { _id: true }
 );
 
-// ============================================================================
-// MAIN ENFORCEMENT SCHEMA
-// ============================================================================
+
 const enforcementSchema = new mongoose.Schema(
   {
     relatedCase: {

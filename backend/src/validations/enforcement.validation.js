@@ -9,6 +9,11 @@ exports.create = (req) => {
 
   if (!body.relatedCase || !isObjectId(body.relatedCase)) errors.push("relatedCase is required (ObjectId)");
 
+  const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+  if (body.priority && !PRIORITIES.includes(body.priority)) errors.push("Invalid priority");
+  if (body.penaltyAmount != null && (typeof body.penaltyAmount !== "number" || body.penaltyAmount < 0)) errors.push("penaltyAmount must be >= 0");
+  if (body.courtDate && isNaN(Date.parse(body.courtDate))) errors.push("courtDate must be a valid date");
+
   return { error: errors.length ? errors : null };
 };
 
