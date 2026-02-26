@@ -7,6 +7,11 @@ exports.create = async (req, res) => {
   try {
     const created = await enforcementService.create({
       relatedCase: req.body.relatedCase,
+      priority: req.body.priority,
+      notes: req.body.notes,
+      penaltyAmount: req.body.penaltyAmount,
+      courtDate: req.body.courtDate,
+      courtReference: req.body.courtReference,
       leadOfficer: req.user._id,
       actorId: req.user._id,
     });
@@ -162,26 +167,41 @@ exports.close = async (req, res) => {
   }
 };
 
-// ============================================================================
-// EVIDENCE MANAGEMENT CONTROLLERS
-// ============================================================================
-// Handlers for evidence chain-of-custody operations.
-// Evidence is critical for legal proceedings and court cases.
-// ============================================================================
+
+/**
+ * Get all evidence items for an enforcement record
+ * GET /api/enforcements/:enforcementId/evidence
+ */
+exports.getEvidence = async (req, res) => {
+  try {
+    const evidence = await enforcementService.getEvidenceByEnforcement(req.params.enforcementId);
+    res.json(evidence);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
 
 /**
  * Add evidence item to an enforcement record
  * POST /api/enforcements/:enforcementId/evidence
- * Body: { evidenceType, description, storageLocation, collectionMethod, condition, isSealed, sealNumber, notes }
+ * Body (form-data): evidenceType, description, [files], storageLocation, etc.
  */
 exports.addEvidence = async (req, res) => {
   try {
-    const updated = await enforcementService.addEvidence({
+    // Map Cloudinary-uploaded files to structured attachment objects
+    const attachments = (req.files || []).map((f) => ({
+      url: f.path,           // Cloudinary secure URL
+      publicId: f.filename,  // Cloudinary public_id (used for deletion)
+      filename: f.originalname,
+    }));
+
+    const evidence = await enforcementService.addEvidence({
       enforcementId: req.params.enforcementId,
       evidenceData: req.body,
+      attachments,
       actorId: req.user._id,
     });
-    res.json(updated);
+    res.status(201).json(evidence);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
@@ -190,17 +210,25 @@ exports.addEvidence = async (req, res) => {
 /**
  * Update existing evidence item
  * PATCH /api/enforcements/:enforcementId/evidence/:evidenceId
- * Body: { evidenceType?, description?, storageLocation?, condition?, isSealed?, sealNumber?, notes?, verified? }
+ * Body (form-data): evidenceType?, description?, [files], condition?, isSealed?, verified?
  */
 exports.updateEvidence = async (req, res) => {
   try {
-    const updated = await enforcementService.updateEvidence({
+    // Map any newly uploaded files
+    const newAttachments = (req.files || []).map((f) => ({
+      url: f.path,
+      publicId: f.filename,
+      filename: f.originalname,
+    }));
+
+    const evidence = await enforcementService.updateEvidence({
       enforcementId: req.params.enforcementId,
       evidenceId: req.params.evidenceId,
       payload: req.body,
+      newAttachments,
       actorId: req.user._id,
     });
-    res.json(updated);
+    res.json(evidence);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
   }
@@ -212,13 +240,112 @@ exports.updateEvidence = async (req, res) => {
  */
 exports.deleteEvidence = async (req, res) => {
   try {
-    const updated = await enforcementService.deleteEvidence({
+    const deleted = await enforcementService.deleteEvidence({
       enforcementId: req.params.enforcementId,
       evidenceId: req.params.evidenceId,
       actorId: req.user._id,
     });
-    res.json(updated);
+    res.json({ message: "Evidence deleted", id: deleted._id });
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+
+/**
+ * Get all team members for an enforcement record
+ * GET /api/enforcements/:enforcementId/team
+ */
+exports.getTeam = async (req, res) => {
+  try {
+    const team = await enforcementService.getTeamByEnforcement(req.params.enforcementId);
+    res.json(team);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+/**
+ * Add team member to an enforcement record
+ * POST /api/enforcements/:enforcementId/team
+ * Body: { officerId, role, department, specialization, badgeNumber, contactNumber, responsibilities, notes }
+ */
+exports.addTeamMember = async (req, res) => {
+  try {
+    const member = await enforcementService.addTeamMember({
+      enforcementId: req.params.enforcementId,
+      teamData: req.body,
+      actorId: req.user._id,
+    });
+    res.status(201).json(member);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+/**
+ * Update team member details
+ * PATCH /api/enforcements/:enforcementId/team/:memberId
+ * Body: { role?, status?, department?, specialization?, hoursLogged?, responsibilities?, notes? }
+ */
+exports.updateTeamMember = async (req, res) => {
+  try {
+    const member = await enforcementService.updateTeamMember({
+      enforcementId: req.params.enforcementId,
+      memberId: req.params.memberId,
+      payload: req.body,
+      actorId: req.user._id,
+    });
+    res.json(member);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+/**
+ * Remove team member from enforcement
+ * DELETE /api/enforcements/:enforcementId/team/:memberId
+ */
+exports.deleteTeamMember = async (req, res) => {
+  try {
+    const deleted = await enforcementService.deleteTeamMember({
+      enforcementId: req.params.enforcementId,
+      memberId: req.params.memberId,
+      actorId: req.user._id,
+    });
+    res.json({ message: "Team member removed", id: deleted._id });
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message });
+  }
+};
+
+
+/**
+ * Get basic enforcement statistics
+ * GET /api/enforcements/stats/basic
+ */
+exports.getBasicStats = async (req, res) => {
+  try {
+    const stats = await enforcementService.getBasicStatistics();
+    res.json(stats);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
+/**
+ * Get statistics with date range filtering
+ * GET /api/enforcements/stats/by-date?startDate=&endDate=&groupBy=day|week|month
+ */
+exports.getStatsByDateRange = async (req, res) => {
+  try {
+    const stats = await enforcementService.getStatisticsByDateRange({
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      groupBy: req.query.groupBy || "day",
+    });
+    res.json(stats);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
   }
 };

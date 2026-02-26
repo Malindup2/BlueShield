@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const router = express.Router();
 
 const { protect } = require("../middlewares/authMiddleware");
@@ -7,13 +7,18 @@ const validate = require("../middlewares/validate");
 const v = require("../validations/enforcement.validation");
 
 const ctrl = require("../controllers/enforcementController");
+const { uploadEvidence } = require("../middlewares/upload");
+
+// STATISTICS ROUTES 
+router.get("/stats/basic", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.getBasicStats);
+router.get("/stats/by-date", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.getStatsByDateRange);
 
 // CRUD
 router.post("/", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.create), ctrl.create);
 router.get("/", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.list);
 router.get("/:enforcementId", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), validate(v.getById), ctrl.getById);
 router.patch("/:enforcementId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.update), ctrl.update);
-router.delete("/:enforcementId", protect, authorize("SYSTEM_ADMIN"), validate(v.getById), ctrl.remove);
+router.delete("/:enforcementId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.getById), ctrl.remove);
 
 // Workflow helpers
 router.post("/from-case/:caseId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.fromCase), ctrl.createFromCase);
@@ -24,49 +29,21 @@ router.patch("/:enforcementId/actions/:actionId", protect, authorize("OFFICER", 
 router.delete("/:enforcementId/actions/:actionId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.deleteAction), ctrl.deleteAction);
 
 // Close enforcement with outcome
-router.patch(
-  "/:enforcementId/close",
-  protect,
-  authorize("OFFICER", "SYSTEM_ADMIN"),
-  validate(v.close),
-  ctrl.close
-);
+router.patch("/:enforcementId/close", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.close), ctrl.close);
 
 // External API feature (AI) - Gemini risk score
-router.post(
-  "/:enforcementId/risk-score",
-  protect,
-  authorize("OFFICER", "SYSTEM_ADMIN"),
-  validate(v.getById),
-  ctrl.generateRiskScore
-);
+router.post("/:enforcementId/risk-score", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.getById), ctrl.generateRiskScore);
 
-// EVIDENCE ROUTES - Chain of Custody Management
-// Add new evidence item
-router.post(
-  "/:enforcementId/evidence",
-  protect,
-  authorize("OFFICER", "SYSTEM_ADMIN"),
-  validate(v.addEvidence),
-  ctrl.addEvidence
-);
+// EVIDENCE ROUTES
+router.get("/:enforcementId/evidence", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), validate(v.getById), ctrl.getEvidence);
+router.post("/:enforcementId/evidence", protect, authorize("OFFICER", "SYSTEM_ADMIN"), uploadEvidence, validate(v.addEvidence), ctrl.addEvidence);
+router.patch("/:enforcementId/evidence/:evidenceId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), uploadEvidence, validate(v.updateEvidence), ctrl.updateEvidence);
+router.delete("/:enforcementId/evidence/:evidenceId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.deleteEvidence), ctrl.deleteEvidence);
 
-// Update existing evidence item
-router.patch(
-  "/:enforcementId/evidence/:evidenceId",
-  protect,
-  authorize("OFFICER", "SYSTEM_ADMIN"),
-  validate(v.updateEvidence),
-  ctrl.updateEvidence
-);
-
-// Delete evidence item
-router.delete(
-  "/:enforcementId/evidence/:evidenceId",
-  protect,
-  authorize("OFFICER", "SYSTEM_ADMIN"),
-  validate(v.deleteEvidence),
-  ctrl.deleteEvidence
-);
+// TEAM ROUTES
+router.get("/:enforcementId/team", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), validate(v.getById), ctrl.getTeam);
+router.post("/:enforcementId/team", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.addTeamMember), ctrl.addTeamMember);
+router.patch("/:enforcementId/team/:memberId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.updateTeamMember), ctrl.updateTeamMember);
+router.delete("/:enforcementId/team/:memberId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.deleteTeamMember), ctrl.deleteTeamMember);
 
 module.exports = router;

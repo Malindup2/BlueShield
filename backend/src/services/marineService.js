@@ -45,7 +45,7 @@ exports.fetchMarineConditions = async ({ lat, lng }) => {
   const params = {
     latitude: lat,
     longitude: lng,
-    hourly: "wave_height,wind_wave_height,sea_surface_temperature", // ✅ valid marine vars
+    hourly: "wave_height,wind_wave_height,sea_surface_temperature", 
     timezone: "UTC",
   };
 
