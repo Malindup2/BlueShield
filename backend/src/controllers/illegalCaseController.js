@@ -137,7 +137,6 @@ exports.escalateCase = async (req, res) => {
 };
 
 
- //  POST /api/illegal-cases/:caseId/track
  //  Calls external API based on severity
 
 exports.trackVessel = async (req, res) => {
@@ -151,7 +150,6 @@ exports.trackVessel = async (req, res) => {
 
 
 
- //  POST /api/illegal-cases/:caseId/notes
  // Adds a reference note
  
 exports.addNote = async (req, res) => {

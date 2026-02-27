@@ -10,7 +10,7 @@ const illegalCaseSchema = new mongoose.Schema(
       type: String,
       unique: true,
     },
-    // Reference to the original fisherman-reported incident (ILLEGAL_FISHING type)
+    // Reference to the original fisherman reported incident (ILLEGAL FISHING type)
     baseReport: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Report",
@@ -49,14 +49,13 @@ const illegalCaseSchema = new mongoose.Schema(
       trim: true,
       required: [true, "Vessel type is required"],
     },
-    // Officer assigned via escalate action (ObjectId ref to User with role OFFICER)
-    // Only set when admin escalates the case — null until then
+    // Officer assigned via escalate action (only set when admin escalates the case — null until then)
     assignedOfficer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
-    // Tracks whether the 'track' button has been used (can only be clicked once)
+    // Tracks whether the 'track' has been used (can only used once)
     trackButtonUsed: {
       type: Boolean,
       default: false,
@@ -66,7 +65,7 @@ const illegalCaseSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
-    // Reference notes added by admin in the third section of the details page
+    // Reference notes 
     reviewNotes: [
       {
         content: {
@@ -79,8 +78,7 @@ const illegalCaseSchema = new mongoose.Schema(
         },
       },
     ],
-    // Whether the base report has been "marked as reviewed" in the dashboard
-    // Also set to true automatically when status becomes RESOLVED
+    // set to true automatically when status is reviewed
     isReviewed: {
       type: Boolean,
       default: false,

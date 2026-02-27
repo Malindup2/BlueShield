@@ -44,9 +44,9 @@ BlueShield is a full stack web application designed to help fishermen and author
 - Incident report CRUD (illegal fishing, hazards)
 - Mapbox API for geolocation
 
-### Case Review & Intelligence
+### Case Review & Escalation
 - Illegal case CRUD and review
-- Vessel Data API integration for jurisdiction
+- Vessel Data API simulation using Beeceptor for jurisdiction
 - Bulletins and case status updates
 
 ### Enforcement & Risk Scoring
@@ -143,39 +143,73 @@ Session management, unified routing for user reports. Integrates with Mapbox Rev
 - `PATCH /reports/:id/status` — Update status (protected: SYSTEM_ADMIN)
 - `DELETE /reports/:id` — Delete (protected: FISHERMAN owner or SYSTEM_ADMIN)
 
-### 2. Illegal Case Review & Intelligence
-Investigate unauthorized fishing, vessel tracking. Integrates with Vessel Data API.
+### 2. Illegal Case Review & Escalation
+Investigate unauthorized fishing, simulate vessel tracking using Beeceptor external API. Escalate the case to a specific officer.
 
 #### Endpoints
-- `GET /illegal-cases` — List cases (protected: ILLEGAL_ADMIN)
-- `GET /illegal-cases/:id` — Case details
-- `GET /illegal-cases/:id/vessel-data` — Vessel jurisdiction
-- `POST /illegal-cases/:id/bulletins` — Create bulletin
-- `PATCH /illegal-cases/:id/status` — Update status
-- `DELETE /illegal-cases/:id` — Remove case
+
+- `POST /api/illegal-cases/reports/:reportId/review` - New illegal case review record
+- `GET /api/illegal-cases` - List of all records
+- `GET /api/illegal-cases/:caseId` - Record details
+- `PATCH /api/illegal-cases/:caseId` - Update record
+- `DELETE /api/illegal-cases/:caseId` - Delete record
+- `POST /api/illegal-cases/:caseId/track` - Fetch vessel data
+- `GET /api/illegal-cases/officers` - Get all officers
+- `POST /api/illegal-cases/:caseId/escalate` - escalate to a specific officer
+- `POST /api/illegal-cases/:caseId/notes` - Add a reference note
+
 
 ### 3. Legal Enforcement & Risk Scoring
-Enforcement actions, fines, risk scoring. Integrates with Google Gemini API.
+Enforcement actions, fines, risk scoring. Integrates with Google Gemini API and Cloudinary.
 
 #### Endpoints
-- `POST /enforcements` — New enforcement (protected: OFFICER)
-- `GET /enforcements` — List enforcements
-- `POST /enforcements/:id/risk-score` — AI risk score
-- `POST /enforcements/:id/actions` — Log action
-- `PATCH /enforcements/:id` — Update enforcement
-- `DELETE /enforcements/:id/actions/:actionId` — Remove action
+**Main Enforcement CRUD**
+- `POST /api/enforcements` — Create new enforcement (protected: OFFICER, SYSTEM_ADMIN)
+- `GET /api/enforcements` — List enforcements (protected: OFFICER, SYSTEM_ADMIN, ILLEGAL_ADMIN)
+- `GET /api/enforcements/:id` — Get enforcement by ID
+- `PATCH /api/enforcements/:id` — Update enforcement details
+- `DELETE /api/enforcements/:id` — Delete enforcement (protected: OFFICER, SYSTEM_ADMIN)
+
+**Workflow & AI**
+- `POST /api/enforcements/from-case/:caseId` — Create enforcement from an illegal case
+- `PATCH /api/enforcements/:id/close` — Close enforcement with outcome and penalty
+- `POST /api/enforcements/:id/risk-score` — Generate AI risk score using Gemini
+
+**Actions Log**
+- `POST /api/enforcements/:id/actions` — Log an enforcement action (e.g., FINE_ISSUED)
+- `PATCH /api/enforcements/:id/actions/:actionId` — Update an action
+- `DELETE /api/enforcements/:id/actions/:actionId` — Remove an action
+
+**Evidence Management (Cloudinary Integration)**
+- `GET /api/enforcements/:id/evidence` — List attached evidence
+- `POST /api/enforcements/:id/evidence` — Upload evidence file (Multipart form-data)
+- `PATCH /api/enforcements/:id/evidence/:evidenceId` — Update evidence status 
+- `DELETE /api/enforcements/:id/evidence/:evidenceId` — Delete evidence and remove file from Cloudinary
+
+**Team Management**
+- `GET /api/enforcements/:id/team` — List assigned team members
+- `POST /api/enforcements/:id/team` — Assign officer to enforcement team
+- `PATCH /api/enforcements/:id/team/:memberId` — Update team member status/hours
+- `DELETE /api/enforcements/:id/team/:memberId` — Remove officer from team
+
 
 ### 4. Hazard & Marine Safety Management
 Environmental hazards, SOS, restricted zones. Integrates with Open-Meteo Marine API.
 
 #### Endpoints
-- `GET /hazards` — List hazards (protected: HAZARD_ADMIN)
-- `GET /hazards/:id/weather` — Live sea conditions
-- `PATCH /hazards/:id` — Update hazard
-- `POST /zones` — Create restricted zone
-- `GET /zones` — List active zones
-- `PATCH /zones/:id` — Update zone
-- `DELETE /zones/:id` — Delete zone
+- `POST /api/hazards/from-report/:reportId` — Create a verified hazard case from an approved hazard
+- `GET /api/hazards` — List all hazard cases
+- `GET /api/hazards/:id` — Get a hazard case by ID
+- `PATCH /api/hazards/:id` — Update hazard case details
+- `GET /api/hazards/:id/weather` — Fetch live sea/weather conditions for the hazard location
+- `PATCH /api/hazards/:id/resolve` — resolve hazard mark related report as resolved and disable linked active zones
+- `DELETE /api/hazards/:id` — Delete a hazard case permanently
+
+- `POST /api/zones` — Create a hazard zone for a hazard case
+- `GET /api/zones` — List zones (GeoJSON for map display)
+- `GET /api/zones/:id` — Get a zone by ID
+- `PATCH /api/zones/:id` — Update zone details or disable a zone
+- `DELETE /api/zones/:id` — Delete a zone permanently
 
 ---
 
@@ -209,7 +243,7 @@ MIT
 
 ## External APIs Used
 - Mapbox Reverse Geocoding
-- Vessel Data API (Mocky.io/REST Countries)
+- Beeceptor API (for simulating vessel tracking)
 - Google Gemini API
 - Open-Meteo Marine API
 
