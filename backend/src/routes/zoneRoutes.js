@@ -8,7 +8,7 @@ const v = require("../validations/zone.validation");
 
 const zonectrl = require("../controllers/zoneController");
 
-// Create zone
+// Create a zone for a hazard
 router.post(
   "/",
   protect,
@@ -17,6 +17,45 @@ router.post(
   zonectrl.create
 );
 
+
+// List zones (GeoJSON for map)
+router.get(
+  "/",
+  protect, 
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN", "FISHERMAN", "OFFICER"),
+  validate(v.list),
+  zonectrl.list
+);
+
+
+// Get zone by id
+router.get(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.getById),
+  zonectrl.getById
+);
+
+
+// Update zone 
+router.patch(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  validate(v.update),
+  zonectrl.update
+);
+
+
+// Delete zone 
+router.delete(
+  "/:id",
+  protect,
+  authorize("HAZARD_ADMIN","SYSTEM_ADMIN"),
+  validate(v.getById),
+  zonectrl.remove
+);
 
 
 

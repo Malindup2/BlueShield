@@ -7,8 +7,9 @@ const validate = require("../middlewares/validate");
 const v = require("../validations/enforcement.validation");
 
 const ctrl = require("../controllers/enforcementController");
+const { uploadEvidence } = require("../middlewares/upload");
 
-// STATISTICS ROUTES (placed before :enforcementId to avoid route conflicts)
+// STATISTICS ROUTES 
 router.get("/stats/basic", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.getBasicStats);
 router.get("/stats/by-date", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.getStatsByDateRange);
 
@@ -17,7 +18,7 @@ router.post("/", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.creat
 router.get("/", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.list);
 router.get("/:enforcementId", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), validate(v.getById), ctrl.getById);
 router.patch("/:enforcementId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.update), ctrl.update);
-router.delete("/:enforcementId", protect, authorize("SYSTEM_ADMIN"), validate(v.getById), ctrl.remove);
+router.delete("/:enforcementId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.getById), ctrl.remove);
 
 // Workflow helpers
 router.post("/from-case/:caseId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.fromCase), ctrl.createFromCase);
@@ -35,8 +36,8 @@ router.post("/:enforcementId/risk-score", protect, authorize("OFFICER", "SYSTEM_
 
 // EVIDENCE ROUTES
 router.get("/:enforcementId/evidence", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), validate(v.getById), ctrl.getEvidence);
-router.post("/:enforcementId/evidence", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.addEvidence), ctrl.addEvidence);
-router.patch("/:enforcementId/evidence/:evidenceId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.updateEvidence), ctrl.updateEvidence);
+router.post("/:enforcementId/evidence", protect, authorize("OFFICER", "SYSTEM_ADMIN"), uploadEvidence, validate(v.addEvidence), ctrl.addEvidence);
+router.patch("/:enforcementId/evidence/:evidenceId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), uploadEvidence, validate(v.updateEvidence), ctrl.updateEvidence);
 router.delete("/:enforcementId/evidence/:evidenceId", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.deleteEvidence), ctrl.deleteEvidence);
 
 // TEAM ROUTES

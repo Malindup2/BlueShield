@@ -26,6 +26,9 @@ app.use('/api/enforcements', require('./src/routes/enforcementRoutes'));
 app.use("/api/hazards", require("./src/routes/hazardRoutes"));
 app.use("/api/zones", require("./src/routes/zoneRoutes"));
 
+app.use('/api/illegal-cases', require('./src/routes/illegalCaseRoutes')); 
+
+
 // Routes for Reports
 app.use("/api/reports", require("./src/routes/reportRoutes"));
 

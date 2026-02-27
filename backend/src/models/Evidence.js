@@ -71,6 +71,7 @@ const evidenceSchema = new mongoose.Schema(
     attachments: [
       {
         url: { type: String, trim: true },
+        publicId: { type: String, trim: true }, // Cloudinary public_id — needed for deletion
         filename: { type: String, trim: true },
         uploadedAt: { type: Date, default: Date.now },
       },

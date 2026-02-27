@@ -112,7 +112,10 @@ exports.deleteReviewedCase = async ({ reportId }) => {
   return { reportId, illegalCaseId: illegalCase ? illegalCase._id : null };
 };
 
+
 // ILLEGAL CASE REVIEW RECORD
+
+
 
  // Creates a new illegal case review record from a pending ILLEGAL_FISHING report.
 
@@ -248,6 +251,8 @@ exports.deleteCase = async ({ caseId }) => {
   return { id: caseId };
 };
 
+
+
 // get all users with role OFFICER for the assign officer 
  
 exports.getOfficers = async () => {
@@ -314,4 +319,89 @@ exports.escalateCase = async ({ caseId, officerId, actorId }) => {
     .populate("escalatedBy", "name email");
 
   return populated;
+};
+
+
+ // Fetches vessel data from the external API based on case severity.
+ 
+exports.trackVessel = async ({ caseId }) => {
+  const illegalCase = await IllegalCase.findById(caseId);
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // tracking once only 
+  if (illegalCase.trackButtonUsed) {
+    const err = new Error(
+      "Vessel has already been tracked for this case. This action is permanent."
+    );
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // Select URL based on severity
+  const selectedUrl = VESSEL_API_URLS[illegalCase.severity];
+  if (!selectedUrl) {
+    const err = new Error("Invalid severity — cannot map to vessel data URL");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let vesselData;
+  let dataSource;
+
+  try {
+    // Always attempt external API first
+    const response = await axios.get(selectedUrl, { timeout: 10000 });
+    vesselData = response.data;
+    dataSource = "external_api";
+    console.log(`[trackVessel] External API success for severity=${illegalCase.severity}`);
+  } catch (apiError) {
+    // Fallback only if external API fails
+    console.warn(
+      `[trackVessel] External API unavailable for severity=${illegalCase.severity}. ` +
+        `Using fallback data. Reason: ${apiError.message}`
+    );
+    vesselData = FALLBACK_DATA[illegalCase.severity];
+    dataSource = "fallback";
+  }
+
+  // Persist fetched data 
+  illegalCase.trackedVesselData = vesselData;
+  illegalCase.trackButtonUsed = true;
+  await illegalCase.save();
+
+  return {
+    vesselData,
+    severity: illegalCase.severity,
+    trackedAt: new Date(),
+    dataSource,
+  };
+};
+
+ // add a reference note
+
+exports.addNote = async ({ caseId, content }) => {
+  const illegalCase = await IllegalCase.findByIdAndUpdate(
+    caseId,
+    {
+      $push: {
+        reviewNotes: {
+          content,
+          addedAt: new Date(),
+        },
+      },
+    },
+    { new: true, runValidators: true }
+  );
+
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return illegalCase;
 };
