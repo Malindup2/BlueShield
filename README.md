@@ -44,9 +44,9 @@ BlueShield is a full stack web application designed to help fishermen and author
 - Incident report CRUD (illegal fishing, hazards)
 - Mapbox API for geolocation
 
-### Case Review & Intelligence
+### Case Review & Escalation
 - Illegal case CRUD and review
-- Vessel Data API integration for jurisdiction
+- Vessel Data API simulation using Beeceptor for jurisdiction
 - Bulletins and case status updates
 
 ### Enforcement & Risk Scoring
@@ -143,16 +143,21 @@ Session management, unified routing for user reports. Integrates with Mapbox Rev
 - `PATCH /reports/:id/status` — Update status (protected: SYSTEM_ADMIN)
 - `DELETE /reports/:id` — Delete (protected: FISHERMAN owner or SYSTEM_ADMIN)
 
-### 2. Illegal Case Review & Intelligence
-Investigate unauthorized fishing, vessel tracking. Integrates with Vessel Data API.
+### 2. Illegal Case Review & Escalation
+Investigate unauthorized fishing, simulate vessel tracking using Beeceptor external API. Escalate the case to a specific officer.
 
 #### Endpoints
-- `GET /illegal-cases` — List cases (protected: ILLEGAL_ADMIN)
-- `GET /illegal-cases/:id` — Case details
-- `GET /illegal-cases/:id/vessel-data` — Vessel jurisdiction
-- `POST /illegal-cases/:id/bulletins` — Create bulletin
-- `PATCH /illegal-cases/:id/status` — Update status
-- `DELETE /illegal-cases/:id` — Remove case
+
+- `POST /api/illegal-cases/reports/:reportId/review` - New illegal case review record
+- `GET /api/illegal-cases` - List of all records
+- `GET /api/illegal-cases/:caseId` - Record details
+- `PATCH /api/illegal-cases/:caseId` - Update record
+- `DELETE /api/illegal-cases/:caseId` - Delete record
+- `POST /api/illegal-cases/:caseId/track` - Fetch vessel data
+- `GET /api/illegal-cases/officers` - Get all officers
+- `POST /api/illegal-cases/:caseId/escalate` - escalate to a specific officer
+- `POST /api/illegal-cases/:caseId/notes` - Add a reference note
+
 
 ### 3. Legal Enforcement & Risk Scoring
 Enforcement actions, fines, risk scoring. Integrates with Google Gemini API.
@@ -209,7 +214,7 @@ MIT
 
 ## External APIs Used
 - Mapbox Reverse Geocoding
-- Vessel Data API (Mocky.io/REST Countries)
+- Beeceptor API (for simulating vessel tracking)
 - Google Gemini API
 - Open-Meteo Marine API
 
