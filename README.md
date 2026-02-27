@@ -160,15 +160,38 @@ Investigate unauthorized fishing, simulate vessel tracking using Beeceptor exter
 
 
 ### 3. Legal Enforcement & Risk Scoring
-Enforcement actions, fines, risk scoring. Integrates with Google Gemini API.
+Enforcement actions, fines, risk scoring. Integrates with Google Gemini API and Cloudinary.
 
 #### Endpoints
-- `POST /enforcements` — New enforcement (protected: OFFICER)
-- `GET /enforcements` — List enforcements
-- `POST /enforcements/:id/risk-score` — AI risk score
-- `POST /enforcements/:id/actions` — Log action
-- `PATCH /enforcements/:id` — Update enforcement
-- `DELETE /enforcements/:id/actions/:actionId` — Remove action
+**Main Enforcement CRUD**
+- `POST /api/enforcements` — Create new enforcement (protected: OFFICER, SYSTEM_ADMIN)
+- `GET /api/enforcements` — List enforcements (protected: OFFICER, SYSTEM_ADMIN, ILLEGAL_ADMIN)
+- `GET /api/enforcements/:id` — Get enforcement by ID
+- `PATCH /api/enforcements/:id` — Update enforcement details
+- `DELETE /api/enforcements/:id` — Delete enforcement (protected: OFFICER, SYSTEM_ADMIN)
+
+**Workflow & AI**
+- `POST /api/enforcements/from-case/:caseId` — Create enforcement from an illegal case
+- `PATCH /api/enforcements/:id/close` — Close enforcement with outcome and penalty
+- `POST /api/enforcements/:id/risk-score` — Generate AI risk score using Gemini
+
+**Actions Log**
+- `POST /api/enforcements/:id/actions` — Log an enforcement action (e.g., FINE_ISSUED)
+- `PATCH /api/enforcements/:id/actions/:actionId` — Update an action
+- `DELETE /api/enforcements/:id/actions/:actionId` — Remove an action
+
+**Evidence Management (Cloudinary Integration)**
+- `GET /api/enforcements/:id/evidence` — List attached evidence
+- `POST /api/enforcements/:id/evidence` — Upload evidence file (Multipart form-data)
+- `PATCH /api/enforcements/:id/evidence/:evidenceId` — Update evidence status 
+- `DELETE /api/enforcements/:id/evidence/:evidenceId` — Delete evidence and remove file from Cloudinary
+
+**Team Management**
+- `GET /api/enforcements/:id/team` — List assigned team members
+- `POST /api/enforcements/:id/team` — Assign officer to enforcement team
+- `PATCH /api/enforcements/:id/team/:memberId` — Update team member status/hours
+- `DELETE /api/enforcements/:id/team/:memberId` — Remove officer from team
+
 
 ### 4. Hazard & Marine Safety Management
 Environmental hazards, SOS, restricted zones. Integrates with Open-Meteo Marine API.
