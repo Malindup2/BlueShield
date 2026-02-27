@@ -174,13 +174,19 @@ Enforcement actions, fines, risk scoring. Integrates with Google Gemini API.
 Environmental hazards, SOS, restricted zones. Integrates with Open-Meteo Marine API.
 
 #### Endpoints
-- `GET /hazards` — List hazards (protected: HAZARD_ADMIN)
-- `GET /hazards/:id/weather` — Live sea conditions
-- `PATCH /hazards/:id` — Update hazard
-- `POST /zones` — Create restricted zone
-- `GET /zones` — List active zones
-- `PATCH /zones/:id` — Update zone
-- `DELETE /zones/:id` — Delete zone
+- `POST /api/hazards/from-report/:reportId` — Create a verified hazard case from an approved hazard
+- `GET /api/hazards` — List all hazard cases
+- `GET /api/hazards/:id` — Get a hazard case by ID
+- `PATCH /api/hazards/:id` — Update hazard case details
+- `GET /api/hazards/:id/weather` — Fetch live sea/weather conditions for the hazard location
+- `PATCH /api/hazards/:id/resolve` — resolve hazard mark related report as resolved and disable linked active zones
+- `DELETE /api/hazards/:id` — Delete a hazard case permanently
+
+- `POST /api/zones` — Create a hazard zone for a hazard case
+- `GET /api/zones` — List zones (GeoJSON for map display)
+- `GET /api/zones/:id` — Get a zone by ID
+- `PATCH /api/zones/:id` — Update zone details or disable a zone
+- `DELETE /api/zones/:id` — Delete a zone permanently
 
 ---
 
