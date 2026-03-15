@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -12,14 +14,29 @@ export default function Login() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    
+    try {
+      const response = await axios.post("http://localhost:5000/api/auth/login", formData);
+      const data = response.data;
+      
+      // Save token & user to local storage
+      localStorage.setItem("user", JSON.stringify(data));
+      localStorage.setItem("token", data.token);
+
+      toast.success(`Welcome back, ${data.name}!`);
+      
+      // Redirect based on role if needed, or just to dashboard
       navigate("/");
-    }, 1500);
+    } catch (error) {
+      console.error("Login error:", error);
+      const message = error.response?.data?.message || "Login failed. Please check your credentials.";
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
