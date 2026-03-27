@@ -29,7 +29,14 @@ export default function Login() {
       toast.success(`Welcome back, ${data.name}!`);
       
       // Redirect based on role if needed, or just to dashboard
-      navigate("/");
+      switch (data.role) {
+        case "HAZARD_ADMIN":
+          navigate("/dashboard/hazard");
+          break;
+        default:
+          navigate("/");
+      }
+
     } catch (error) {
       console.error("Login error:", error);
       const message = error.response?.data?.message || "Login failed. Please check your credentials.";
