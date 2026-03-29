@@ -1,59 +1,72 @@
-// react frontend for submit a report page
-
-import React, { useState } from "react";
+import { useState } from "react";
+import VesselMap from "../components/vesselMap";
 import axios from "axios";
 
-const SubmitAReport = () => {
-    const [reportData, setReportData] = useState({
-        title: "",
-        description: "",
-        reportType: "OTHER",
-        severity: "MEDIUM",
-        location: "",
-    }); 
+export default function SubmitAReport() {
+  const [location, setLocation] = useState(null);
+  const [vessel, setVessel] = useState(null);
 
-    const handleChange = (e) => {
-        setReportData({
-            ...reportData,
-            [e.target.name]: e.target.value,
-        });
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    reportType: "ILLEGAL_FISHING",
+    severity: "MEDIUM"
+  });
+
+  const handleSubmit = async () => {
+    if (!location) {
+      alert("Please select a location on the map");
+      return;
+    }
+
+    const data = {
+      ...form,
+      reportLocation: location,
+      vessel: vessel
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const response = await axios.post("/api/reports", reportData);
-            console.log("Report submitted successfully:", response.data);
-        } catch (error) {
-            console.error("Error submitting report:", error);
+    try {
+      await axios.post("http://localhost:5000/api/reports", data, {
+        headers: {
+          Authorization: `Bearer YOUR_TOKEN`
         }
-    };
+      });
 
-    return (
-        <div>
-            <h1>Submit a Report</h1>
-            <form onSubmit={handleSubmit}>  
-                <input type="text" name="title" placeholder="Title" value={reportData.title} onChange={handleChange} required />
-                <textarea name="description" placeholder="Description" value={reportData.description} onChange={handleChange} required />
-                <select name="reportType" value={reportData.reportType} onChange={handleChange}>
-                    <option value="POLLUTION">Pollution</option>
-                    <option value="ILLEGAL_FISHING">Illegal Fishing</option>
-                    <option value="HAZARD">Hazard</option>
-                    <option value="ENVIRONMENTAL">Environmental</option>
-                    <option value="OTHER">Other</option>
-                </select>
-                <select name="severity" value={reportData.severity} onChange={handleChange}>
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                    <option value="CRITICAL">Critical</option>
-                </select>
-                <input type="text" name="location" placeholder="Location (address or coordinates)" value={reportData.location} onChange={handleChange} required />
-                <button type="submit">Submit Report</button>
-            </form>
-        </div>
-    );
+      alert("Report submitted successfully");
+    } catch (error) {
+      console.error(error);
+      alert("Error submitting report");
+    }
+  };
+
+  return (
+    <div>
+        
+      <h2>Submit a Report</h2>
+
+      <input
+        placeholder="Title"
+        onChange={(e) =>
+          setForm({ ...form, title: e.target.value })
+        }
+      />
+
+      <textarea
+        placeholder="Description"
+        onChange={(e) =>
+          setForm({ ...form, description: e.target.value })
+        }
+      />
+
+      Map Component
+      <VesselMap
+        onLocationSelect={setLocation}
+        onVesselSelect={setVessel}
+      />
+
+      <button onClick={handleSubmit}>
+        Submit Report
+      </button>
+    </div>
+  );
 }
-
-export default SubmitAReport;
-
