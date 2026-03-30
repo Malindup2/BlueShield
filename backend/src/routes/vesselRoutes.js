@@ -1,13 +1,15 @@
-import express from "express";
-import router from express.Router();
-import { createVessel, getVessels } from "../controllers/vesselController.js";
+const express = require("express");
+const router = express.Router();
+const vesselController = require("../controllers/vesselController");
 
 // Create a new vessel
-router.post("/", createVessel);
+router.post("/", vesselController.createVessel);
 
 // Get all vessels
-router.get("/", getVessels);        
+router.get("/", vesselController.getVessels);
 
+// Get nearby vessels by location (lat, lng)
+// Usage: GET /api/vessels/nearby?lat=6.9271&lng=79.8612&radius=50
 router.get("/nearby", vesselController.getNearbyVessels);
 
-export default router;
+module.exports = router;
