@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MapPin, AlertCircle, FileUp, Shield } from "lucide-react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -9,7 +10,6 @@ import API_BASE_URL from "../config/api";
 
 export default function SubmitAReport() {
   const [location, setLocation] = useState(null);
-  const [vessel, setVessel] = useState(null);
   const [loading, setLoading] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const navigate = useNavigate();
@@ -21,6 +21,11 @@ export default function SubmitAReport() {
     severity: "MEDIUM",
     isAnonymous: false,
   });
+
+  // Client-side validation
+  const isFormValid = useMemo(() => {
+    return form.title.trim() && form.description.trim() && location;
+  }, [form.title, form.description, location]);
 
   const REPORT_TYPES = [
     { value: "ILLEGAL_FISHING", label: "Illegal Fishing" },
@@ -94,25 +99,18 @@ export default function SubmitAReport() {
         address: location.address || "",
       }));
 
-      if (vessel) {
-        formData.append("vessel", JSON.stringify(vessel));
-      }
-
       // Add attachments
       attachments.forEach((file) => {
         formData.append("attachments", file);
       });
 
-      const response = await axios.post(
-        `${API_BASE_URL}/reports`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const headers = {
+        "Content-Type": "multipart/form-data",
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      await axios.post(`${API_BASE_URL}/api/reports`, formData, { headers });
 
       toast.success("Report submitted successfully!");
       setForm({
@@ -123,7 +121,6 @@ export default function SubmitAReport() {
         isAnonymous: false,
       });
       setLocation(null);
-      setVessel(null);
       setAttachments([]);
       navigate("/");
     } catch (error) {
@@ -143,7 +140,7 @@ export default function SubmitAReport() {
         <div className="w-full h-full flex items-center justify-center rounded-2xl overflow-hidden shadow-2xl">
           <VesselMap
             onLocationSelect={setLocation}
-            onVesselSelect={setVessel}
+            onVesselSelect={() => {}} // Vessel selection not used for reports
           />
         </div>
       </div>
@@ -259,7 +256,7 @@ export default function SubmitAReport() {
                 <div className="w-full h-80 rounded-xl overflow-hidden border border-slate-200">
                   <VesselMap
                     onLocationSelect={setLocation}
-                    onVesselSelect={setVessel}
+                    onVesselSelect={() => {}} // Vessel selection not used for reports
                   />
                 </div>
                 {location && (
@@ -315,7 +312,7 @@ export default function SubmitAReport() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={!isFormValid || loading}
                 className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loading ? "Submitting..." : "Submit Report"}

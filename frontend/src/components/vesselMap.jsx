@@ -61,7 +61,7 @@ export default function VesselMap({ onLocationSelect, onVesselSelect }) {
         // Fetch nearby vessels from backend
         try {
           const res = await axios.get(
-            `${API_BASE_URL}/vessels/nearby?lat=${lat}&lng=${lng}`
+            `${API_BASE_URL}/api/vessels/nearby?lat=${lat}&lng=${lng}`
           );
 
           const vessels = res.data?.data || res.data || [];
@@ -89,7 +89,7 @@ export default function VesselMap({ onLocationSelect, onVesselSelect }) {
               console.log(`Marker coordinates: [${lng}, ${lat}]`);
 
               if (lng !== undefined && lat !== undefined && !isNaN(lng) && !isNaN(lat)) {
-                const marker = new mapboxgl.Marker({ element: vesselMarkerEl })
+                new mapboxgl.Marker({ element: vesselMarkerEl })
                   .setLngLat([lng, lat])
                   .addTo(map.current);
 
@@ -127,7 +127,7 @@ export default function VesselMap({ onLocationSelect, onVesselSelect }) {
       console.error("Map initialization error:", error);
       toast.error("Could not initialize map. Check your Mapbox token.");
     }
-  }, []);
+  }, [onLocationSelect, onVesselSelect]);
 
   return (
     <div
