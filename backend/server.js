@@ -28,9 +28,11 @@ app.use("/api/zones", require("./src/routes/zoneRoutes"));
 
 app.use('/api/illegal-cases', require('./src/routes/illegalCaseRoutes')); 
 
-
 // Routes for Reports
 app.use("/api/reports", require("./src/routes/reportRoutes"));
+
+// Routes for Vessels
+app.use("/api/vessels", require("./src/routes/vesselRoutes"));
 
 
 app.get('/', (req, res) => {
