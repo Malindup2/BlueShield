@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut, Bell, User, AlertTriangle, X } from "lucide-react";
+import { LogOut, User, AlertTriangle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
@@ -44,7 +44,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-10 w-full relative">
+    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-40 w-full relative">
       {/* 1. Session Information (Date/Time) */}
       <div className="flex items-center gap-6">
         <div className="hidden lg:flex flex-col">
@@ -71,12 +71,6 @@ export default function Navbar() {
             {userName.charAt(0).toUpperCase()}
           </div>
         </div>
-
-        {/* Notifications */}
-        <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition relative group">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm" />
-        </button>
         
         {/* Logout Trigger */}
         <button 
@@ -91,7 +85,7 @@ export default function Navbar() {
       {/* Premium Confirmation Modal */}
       <AnimatePresence>
         {showLogoutModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             {/* Glass Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}

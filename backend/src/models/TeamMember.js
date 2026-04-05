@@ -14,8 +14,37 @@ const teamMemberSchema = new mongoose.Schema(
     officer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "Officer is required"],
+      default: null,
     },
+    name: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: null,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: null,
+    },
+    badgeNumber: {
+      type: String,
+      trim: true,
+    },
+    department: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
+    contactNumber: {
+      type: String,
+      trim: true,
+    },
+    responsibilities: [{
+      type: String,
+      trim: true,
+    }],
     role: {
       type: String,
       enum: TEAM_ROLES,
@@ -26,33 +55,16 @@ const teamMemberSchema = new mongoose.Schema(
       enum: TEAM_STATUS,
       default: "ACTIVE",
     },
-    department: {
-      type: String,
-      trim: true,
-      maxlength: 100,
-    },
     specialization: {
       type: String,
       trim: true,
       maxlength: 100,
-    },
-    badgeNumber: {
-      type: String,
-      trim: true,
-    },
-    contactNumber: {
-      type: String,
-      trim: true,
     },
     hoursLogged: {
       type: Number,
       min: 0,
       default: 0,
     },
-    responsibilities: [{
-      type: String,
-      trim: true,
-    }],
     assignedAt: {
       type: Date,
       default: Date.now,
@@ -80,12 +92,14 @@ const teamMemberSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Prevent duplicate officer assignment to same enforcement
-teamMemberSchema.index({ enforcement: 1, officer: 1 }, { unique: true });
+// Prevent duplicate assignment to same enforcement
+teamMemberSchema.index({ enforcement: 1, officer: 1 }, { unique: true, partialFilterExpression: { officer: { $type: "objectId" } } });
+teamMemberSchema.index({ enforcement: 1, email: 1 }, { unique: true, partialFilterExpression: { email: { $type: "string" } } });
 
 // Indexes for efficient queries
 teamMemberSchema.index({ enforcement: 1, role: 1 });
 teamMemberSchema.index({ officer: 1 });
+teamMemberSchema.index({ email: 1 });
 teamMemberSchema.index({ status: 1 });
 
 module.exports = mongoose.model("TeamMember", teamMemberSchema);

@@ -1,4 +1,5 @@
 const isObjectId = (v) => typeof v === "string" && /^[a-fA-F0-9]{24}$/.test(v);
+const isBooleanLike = (v) => typeof v === "boolean" || v === "true" || v === "false";
 
 const ACTION_TYPES = ["INSPECTION", "FINE_ISSUED", "WARNING", "ARREST", "SEIZURE"];
 const ENF_STATUS = ["OPEN", "COURT_PENDING", "CLOSED_RESOLVED"];
@@ -114,7 +115,7 @@ exports.addEvidence = (req) => {
   if (body.condition && !EVIDENCE_CONDITIONS.includes(body.condition)) {
     errors.push(`condition must be one of: ${EVIDENCE_CONDITIONS.join(", ")}`);
   }
-  if (body.isSealed !== undefined && typeof body.isSealed !== "boolean") {
+  if (body.isSealed !== undefined && !isBooleanLike(body.isSealed)) {
     errors.push("isSealed must be a boolean");
   }
   if (body.notes && body.notes.length > 500) {
@@ -142,10 +143,10 @@ exports.updateEvidence = (req) => {
   if (body.condition && !EVIDENCE_CONDITIONS.includes(body.condition)) {
     errors.push(`condition must be one of: ${EVIDENCE_CONDITIONS.join(", ")}`);
   }
-  if (body.isSealed !== undefined && typeof body.isSealed !== "boolean") {
+  if (body.isSealed !== undefined && !isBooleanLike(body.isSealed)) {
     errors.push("isSealed must be a boolean");
   }
-  if (body.verified !== undefined && typeof body.verified !== "boolean") {
+  if (body.verified !== undefined && !isBooleanLike(body.verified)) {
     errors.push("verified must be a boolean");
   }
 
@@ -170,14 +171,28 @@ exports.addTeamMember = (req) => {
   const body = req.body || {};
 
   // Required fields
-  if (!body.officerId || !isObjectId(body.officerId)) {
-    errors.push("officerId is required and must be a valid ObjectId");
+  const hasOfficerId = body.officerId && isObjectId(body.officerId);
+  const hasDirectMemberDetails =
+    typeof body.name === "string" && body.name.trim().length >= 2 &&
+    typeof body.email === "string" && /^\S+@\S+\.\S+$/.test(body.email);
+
+  if (!hasOfficerId && !hasDirectMemberDetails) {
+    errors.push("Provide either a valid officerId or direct member name/email details");
   }
   if (!body.role || !TEAM_ROLES.includes(body.role)) {
     errors.push(`role is required and must be one of: ${TEAM_ROLES.join(", ")}`);
   }
 
   // Optional field validations
+  if (body.name && body.name.length > 100) {
+    errors.push("name must be 100 characters or less");
+  }
+  if (body.email && !/^\S+@\S+\.\S+$/.test(body.email)) {
+    errors.push("email must be valid");
+  }
+  if (body.badgeNumber && body.badgeNumber.length > 50) {
+    errors.push("badgeNumber must be 50 characters or less");
+  }
   if (body.status && !TEAM_STATUS.includes(body.status)) {
     errors.push(`status must be one of: ${TEAM_STATUS.join(", ")}`);
   }
@@ -186,9 +201,6 @@ exports.addTeamMember = (req) => {
   }
   if (body.specialization && body.specialization.length > 100) {
     errors.push("specialization must be 100 characters or less");
-  }
-  if (body.badgeNumber && body.badgeNumber.length > 50) {
-    errors.push("badgeNumber must be 50 characters or less");
   }
   if (body.contactNumber && body.contactNumber.length > 20) {
     errors.push("contactNumber must be 20 characters or less");

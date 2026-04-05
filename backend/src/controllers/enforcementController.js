@@ -3,6 +3,15 @@ const IllegalCase = require("../models/IllegalCase");
 
 const enforcementService = require("../services/enforcementService");
 
+const normalizeBooleanLikeFields = (payload, keys) => {
+  const normalized = { ...payload };
+  keys.forEach((key) => {
+    if (normalized[key] === "true") normalized[key] = true;
+    if (normalized[key] === "false") normalized[key] = false;
+  });
+  return normalized;
+};
+
 exports.create = async (req, res) => {
   try {
     const created = await enforcementService.create({
@@ -167,6 +176,19 @@ exports.close = async (req, res) => {
   }
 };
 
+/**
+ * Get active officers for assignment dropdowns.
+ * GET /api/enforcements/team/officers
+ */
+exports.getAssignableOfficers = async (req, res) => {
+  try {
+    const officers = await enforcementService.getAssignableOfficers();
+    res.json(officers);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
 
 /**
  * Get all evidence items for an enforcement record
@@ -188,6 +210,8 @@ exports.getEvidence = async (req, res) => {
  */
 exports.addEvidence = async (req, res) => {
   try {
+    const evidenceData = normalizeBooleanLikeFields(req.body, ["isSealed"]);
+
     // Map Cloudinary-uploaded files to structured attachment objects
     const attachments = (req.files || []).map((f) => ({
       url: f.path,           // Cloudinary secure URL
@@ -197,7 +221,7 @@ exports.addEvidence = async (req, res) => {
 
     const evidence = await enforcementService.addEvidence({
       enforcementId: req.params.enforcementId,
-      evidenceData: req.body,
+      evidenceData,
       attachments,
       actorId: req.user._id,
     });
@@ -214,6 +238,8 @@ exports.addEvidence = async (req, res) => {
  */
 exports.updateEvidence = async (req, res) => {
   try {
+    const payload = normalizeBooleanLikeFields(req.body, ["isSealed", "verified"]);
+
     // Map any newly uploaded files
     const newAttachments = (req.files || []).map((f) => ({
       url: f.path,
@@ -224,7 +250,7 @@ exports.updateEvidence = async (req, res) => {
     const evidence = await enforcementService.updateEvidence({
       enforcementId: req.params.enforcementId,
       evidenceId: req.params.evidenceId,
-      payload: req.body,
+      payload,
       newAttachments,
       actorId: req.user._id,
     });
