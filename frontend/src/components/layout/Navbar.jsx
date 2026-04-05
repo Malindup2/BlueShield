@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut, Bell, User, AlertTriangle, X } from "lucide-react";
+import { LogOut, User, AlertTriangle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
@@ -71,12 +71,6 @@ export default function Navbar() {
             {userName.charAt(0).toUpperCase()}
           </div>
         </div>
-
-        {/* Notifications */}
-        <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition relative group">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm" />
-        </button>
         
         {/* Logout Trigger */}
         <button 

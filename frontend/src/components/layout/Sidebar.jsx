@@ -11,19 +11,25 @@ import {
   LayoutDashboard,
   FileText,
   Layers,
-  Briefcase
+  Briefcase,
+  Sparkles,
+  Fingerprint
 } from "lucide-react";
 
 // Centralized navigation configuration mapping routes to specific roles
 const MENU_ITEMS = [
   // FISHERMAN (General User)
   { title: "My Dashboard", path: "/dashboard/fisherman", icon: <Home className="w-5 h-5" />, roles: ["FISHERMAN"] },
-  { title: "Report Incident", path: "/dashboard/report", icon: <FileWarning className="w-5 h-5" />, roles: ["FISHERMAN", "OFFICER", "SYSTEM_ADMIN"] },
+  { title: "Report Incident", path: "/dashboard/report", icon: <FileWarning className="w-5 h-5" />, roles: ["FISHERMAN", "SYSTEM_ADMIN"] },
   { title: "Live Map", path: "/dashboard/fisherman/map", icon: <Map className="w-5 h-5" />, roles: ["FISHERMAN"] },
 
   // OFFICER
-  { title: "Enforcement Center", path: "/dashboard/officer", icon: <Scale className="w-5 h-5" />, roles: ["OFFICER"] },
-  { title: "Track Targets", path: "/dashboard/officer/tracking", icon: <Map className="w-5 h-5" />, roles: ["OFFICER"] },
+  { title: "Overview", path: "/dashboard/officer", icon: <LayoutDashboard className="w-5 h-5" />, roles: ["OFFICER"] },
+  { title: "Report Incident", path: "/dashboard/report", icon: <FileWarning className="w-5 h-5" />, roles: ["OFFICER"] },
+  { title: "Cases", path: "/dashboard/officer/cases", icon: <Briefcase className="w-5 h-5" />, roles: ["OFFICER"] },
+  { title: "Team", path: "/dashboard/officer/team", icon: <Users className="w-5 h-5" />, roles: ["OFFICER"] },
+  { title: "Evidence", path: "/dashboard/officer/evidence", icon: <Fingerprint className="w-5 h-5" />, roles: ["OFFICER"] },
+  { title: "AI Risk Analyzer", path: "/dashboard/officer/ai-risk", icon: <Sparkles className="w-5 h-5" />, roles: ["OFFICER"] },
 
   // ILLEGAL ADMIN
   { title: "Dashboard", path: "/dashboard/illegal-admin", icon: <LayoutDashboard className="w-5 h-5" />, roles: ["ILLEGAL_ADMIN"] },
@@ -69,7 +75,12 @@ export default function Sidebar() {
         </div>
         
         {visibleLinks.map((link) => {
-          const isActive = location.pathname === link.path || location.pathname.startsWith(`${link.path}/`);
+          // For root dashboard paths, we want exact matching so "Overview" doesn't stay active on sub-pages
+          const isRootDashboard = link.path.split('/').length <= 3;
+          const isActive = isRootDashboard 
+            ? location.pathname === link.path 
+            : location.pathname === link.path || location.pathname.startsWith(`${link.path}/`);
+            
           return (
             <Link
               key={link.path}
