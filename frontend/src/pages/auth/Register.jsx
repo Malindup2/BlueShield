@@ -32,17 +32,29 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const response = await axios.post(`${API_URL}/register`, formData);
       const data = response.data;
-      
+
       // Save token to local storage
       localStorage.setItem("user", JSON.stringify(data));
       localStorage.setItem("token", data.token);
+      localStorage.setItem("userRole", data.role);
 
       toast.success("Account created successfully!");
-      navigate("/");
+
+      // Role-based redirection mapping
+      const roleDashboards = {
+        FISHERMAN: "/dashboard/fisherman",
+        OFFICER: "/dashboard/officer",
+        HAZARD_ADMIN: "/dashboard/hazard-admin",
+        ILLEGAL_ADMIN: "/dashboard/illegal-admin",
+        SYSTEM_ADMIN: "/dashboard/system-admin",
+      };
+
+      const dashboardPath = roleDashboards[data.role] || "/";
+      navigate(dashboardPath);
     } catch (error) {
       console.error("Registration error:", error);
       const message = error.response?.data?.message || "Registration failed. Please try again.";
@@ -54,7 +66,7 @@ export default function Register() {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      
+
       {/* Right side: Register Form (Swapped sides for variety, or keep same. Let's keep form on right for consistency) */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 h-screen overflow-y-auto">
         <div className="w-full max-w-md py-6">
@@ -116,7 +128,7 @@ export default function Register() {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700" htmlFor="phone">
                   Phone Number
@@ -206,11 +218,11 @@ export default function Register() {
       {/* Right side: Hero Image / Vector */}
       <div className="hidden lg:flex w-1/2 relative bg-[#061428] items-center justify-center overflow-hidden h-screen">
         <div className="relative w-full h-full max-h-screen p-8 flex items-center justify-center">
-            <img
-              src="/coast-guard-poster.jpg"
-              alt="BlueShield Sentinel Guardian"
-              className="max-w-full max-h-full object-contain object-center z-0 drop-shadow-2xl rounded-2xl"
-            />
+          <img
+            src="/coast-guard-poster.jpg"
+            alt="BlueShield Sentinel Guardian"
+            className="max-w-full max-h-full object-contain object-center z-0 drop-shadow-2xl rounded-2xl"
+          />
         </div>
       </div>
 
