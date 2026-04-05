@@ -25,11 +25,22 @@ export default function Login() {
       // Save token & user to local storage
       localStorage.setItem("user", JSON.stringify(data));
       localStorage.setItem("token", data.token);
+      localStorage.setItem("userRole", data.role); // Crucial for Sidebar and ProtectedRoute
 
       toast.success(`Welcome back, ${data.name}!`);
       
-      // Redirect based on role if needed, or just to dashboard
-      navigate("/");
+      // Role-based redirection mapping
+      const roleDashboards = {
+        FISHERMAN: "/dashboard/fisherman",
+        OFFICER: "/dashboard/officer",
+        HAZARD_ADMIN: "/dashboard/hazard-admin",
+        ILLEGAL_ADMIN: "/dashboard/illegal-admin",
+        SYSTEM_ADMIN: "/dashboard/system-admin",
+      };
+
+      // Redirect based on role, default to home if not found
+      const dashboardPath = roleDashboards[data.role] || "/";
+      navigate(dashboardPath);
     } catch (error) {
       console.error("Login error:", error);
       const message = error.response?.data?.message || "Login failed. Please check your credentials.";

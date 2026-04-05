@@ -13,6 +13,9 @@ const { uploadEvidence } = require("../middlewares/upload");
 router.get("/stats/basic", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.getBasicStats);
 router.get("/stats/by-date", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.getStatsByDateRange);
 
+// ASSIGNMENT HELPERS
+router.get("/team/officers", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.getAssignableOfficers);
+
 // CRUD
 router.post("/", protect, authorize("OFFICER", "SYSTEM_ADMIN"), validate(v.create), ctrl.create);
 router.get("/", protect, authorize("OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.list);
