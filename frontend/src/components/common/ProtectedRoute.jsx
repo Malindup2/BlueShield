@@ -13,6 +13,7 @@ export default function ProtectedRoute({ allowedRoles = [], children }) {
   const isAuthenticated = !!localStorage.getItem("token");
   const userRole = localStorage.getItem("userRole");
 
+
   // 1. If no token, bounce to login
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
