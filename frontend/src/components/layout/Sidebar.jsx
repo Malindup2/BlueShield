@@ -2,15 +2,13 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
   Home, 
-  Map, 
-  FileWarning, 
-  ShieldAlert, 
-  Users, 
-  Settings,
-  Scale,
-  LayoutDashboard,
+  Map,
+  FileWarning,
   FileText,
   Layers,
+  Users, 
+  Settings,
+  LayoutDashboard,
   Briefcase,
   Sparkles,
   Fingerprint

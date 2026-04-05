@@ -44,7 +44,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-10 w-full relative">
+    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-40 w-full relative">
       {/* 1. Session Information (Date/Time) */}
       <div className="flex items-center gap-6">
         <div className="hidden lg:flex flex-col">
@@ -85,7 +85,7 @@ export default function Navbar() {
       {/* Premium Confirmation Modal */}
       <AnimatePresence>
         {showLogoutModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             {/* Glass Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
