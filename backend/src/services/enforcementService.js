@@ -2,6 +2,7 @@ const Enforcement = require("../models/Enforcement");
 const IllegalCase = require("../models/IllegalCase");
 const Evidence = require("../models/Evidence");
 const TeamMember = require("../models/TeamMember");
+const User = require("../models/User");
 const cloudinary = require("../config/cloudinary");
 
 
@@ -376,13 +377,32 @@ exports.addTeamMember = async ({ enforcementId, teamData, actorId }) => {
     throw err;
   }
 
-  // Check if officer is already in the team (unique index will also catch this)
+  const selectedId = teamData.officerId;
+
+  const officerUser = selectedId
+    ? await User.findOne({
+        _id: selectedId,
+        role: "OFFICER",
+        isActive: true,
+      }).select("name email role")
+    : null;
+
+  const memberName = officerUser?.name || teamData.name;
+  const memberEmail = officerUser?.email || teamData.email;
+
+  if (!officerUser && (!memberName || !memberEmail)) {
+    const err = new Error("name and email are required when no officer user is selected");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check if member is already in the team (unique index will also catch this)
   const existingMember = await TeamMember.findOne({
     enforcement: enforcementId,
-    officer: teamData.officerId,
+    ...(officerUser ? { officer: officerUser._id } : { email: memberEmail.toLowerCase() }),
   });
   if (existingMember) {
-    const err = new Error("Officer is already assigned to this enforcement team");
+    const err = new Error("Member is already assigned to this enforcement team");
     err.statusCode = 409;
     throw err;
   }
@@ -390,15 +410,17 @@ exports.addTeamMember = async ({ enforcementId, teamData, actorId }) => {
   // Create new team member with enforcement reference
   const newMember = await TeamMember.create({
     enforcement: enforcementId,
-    officer: teamData.officerId,
+    officer: officerUser ? officerUser._id : null,
+    name: memberName,
+    email: memberEmail,
+    badgeNumber: teamData.badgeNumber,
+    department: teamData.department,
+    contactNumber: teamData.contactNumber,
+    responsibilities: teamData.responsibilities,
     role: teamData.role,
     status: teamData.status || "ACTIVE",
-    department: teamData.department,
     specialization: teamData.specialization,
-    badgeNumber: teamData.badgeNumber,
-    contactNumber: teamData.contactNumber,
     hoursLogged: teamData.hoursLogged || 0,
-    responsibilities: teamData.responsibilities,
     notes: teamData.notes,
     assignedAt: new Date(),
     assignedBy: actorId,
@@ -423,11 +445,25 @@ exports.getTeamByEnforcement = async (enforcementId) => {
     throw err;
   }
 
-  return TeamMember.find({ enforcement: enforcementId })
+  const members = await TeamMember.find({ enforcement: enforcementId })
     .populate("officer", "name email role")
     .populate("assignedBy", "name email")
     .populate("relievedBy", "name email")
     .sort("-assignedAt");
+
+  return members.map((memberDoc) => {
+    const member = memberDoc.toObject();
+    if (!member.officer && member.name && member.email) {
+      member.officer = {
+        _id: member._id,
+        name: member.name,
+        email: member.email,
+        role: member.role,
+        source: "DIRECT",
+      };
+    }
+    return member;
+  });
 };
 
 /**
@@ -655,4 +691,17 @@ exports.getStatisticsByDateRange = async ({ startDate, endDate, groupBy = "day" 
     closedByPeriod,
     periodSummary: periodTotals[0] || { totalCreated: 0, totalPenalty: 0, avgRiskScore: null },
   };
+};
+
+/**
+ * Return active officers available for team assignment in enforcement workflows.
+ * @returns {Array}
+ */
+exports.getAssignableOfficers = async () => {
+  return User.find({
+    role: "OFFICER",
+    isActive: true,
+  })
+    .select("name email role")
+    .sort({ name: 1 });
 };
