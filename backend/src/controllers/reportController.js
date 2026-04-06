@@ -3,12 +3,22 @@
 const Report = require("../models/Report");
 exports.create = async (req, res) => {
     try { 
+        const attachments = [];
+        if (req.files && req.files.length > 0) {
+            req.files.forEach(file => {
+                attachments.push({
+                    url: file.path, // Cloudinary URL
+                    type: file.mimetype,
+                });
+            });
+        }
+
         const report = new Report({
             ...req.body,
-            reportedBy: req.user._id  
+            reportedBy: req.user._id,
+            attachments
         });
         await report.save();
-        res.send("Report created successfully");
         res.status(201).json(report);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -18,8 +28,26 @@ exports.create = async (req, res) => {
 
 exports.list = async (req, res) => {
     try {
-        const reports = await Report.find().populate("reportedBy", "name email");
-        res.json(reports);
+        const { page = 1, limit = 10, reportType, severity, status } = req.query;
+        const query = {};
+        if (reportType) query.reportType = reportType;
+        if (severity) query.severity = severity;
+        if (status) query.status = status;
+
+        const reports = await Report.find(query)
+            .populate("reportedBy", "name email")
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .sort({ createdAt: -1 });
+        
+        const total = await Report.countDocuments(query);
+        
+        res.json({
+            reports,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            total
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

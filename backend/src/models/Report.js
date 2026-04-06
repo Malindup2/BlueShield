@@ -79,5 +79,3 @@ reportSchema.index({ location: "2dsphere" });
 reportSchema.index({ reportType: 1, status: 1 });
 
 module.exports = mongoose.model("Report", reportSchema);
-//push test
-//push test

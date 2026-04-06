@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MapPin, AlertCircle, FileUp, Shield } from "lucide-react";
 // eslint-disable-next-line no-unused-vars
@@ -26,6 +26,16 @@ export default function SubmitAReport() {
   const isFormValid = useMemo(() => {
     return form.title.trim() && form.description.trim() && location;
   }, [form.title, form.description, location]);
+
+  // Memoized callback functions to prevent VesselMap re-renders
+  const handleLocationSelect = useCallback((locationData) => {
+    setLocation(locationData);
+  }, []);
+
+  const handleVesselSelect = useCallback((vesselData) => {
+    // Vessel selection not used for reports, but keeping for future use
+    console.log("Vessel selected:", vesselData);
+  }, []);
 
   const REPORT_TYPES = [
     { value: "ILLEGAL_FISHING", label: "Illegal Fishing" },
@@ -139,8 +149,9 @@ export default function SubmitAReport() {
       <div className="hidden lg:flex w-1/2 relative bg-gradient-to-br from-blue-600 to-blue-800 items-center justify-center overflow-hidden h-screen p-8">
         <div className="w-full h-full flex items-center justify-center rounded-2xl overflow-hidden shadow-2xl">
           <VesselMap
-            onLocationSelect={setLocation}
-            onVesselSelect={() => {}} // Vessel selection not used for reports
+            onLocationSelect={handleLocationSelect}
+            onVesselSelect={handleVesselSelect}
+            showGetLocation={true}
           />
         </div>
       </div>
@@ -255,8 +266,9 @@ export default function SubmitAReport() {
                 </label>
                 <div className="w-full h-80 rounded-xl overflow-hidden border border-slate-200">
                   <VesselMap
-                    onLocationSelect={setLocation}
-                    onVesselSelect={() => {}} // Vessel selection not used for reports
+                    onLocationSelect={handleLocationSelect}
+                    onVesselSelect={handleVesselSelect}
+                    showGetLocation={true}
                   />
                 </div>
                 {location && (

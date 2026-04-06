@@ -6,6 +6,7 @@ const router = express.Router();
 const { protect } = require("../middlewares/authMiddleware");
 const authorize = require("../middlewares/authorize");
 const validate = require("../middlewares/validate");
+const { uploadEvidence } = require("../middlewares/upload");
 const v = require("../validations/report.validation");  
 
 const ctrl = require("../controllers/reportController");
@@ -13,7 +14,7 @@ const ctrl = require("../controllers/reportController");
 // CRUD operations for reports 
 
 // need to figure out the Authroization level for this CRUD (officer, fisherman and system_admin has the privilege to create a report, but only officer and system_admin can update or delete a report)
-router.post("/", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN"), validate(v.create), ctrl.create);
+router.post("/", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN"), uploadEvidence, validate(v.create), ctrl.create);
 router.get("/", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), ctrl.list);
 router.get("/:reportId", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN", "ILLEGAL_ADMIN"), validate(v.getById), ctrl.getById);
 router.patch("/:reportId", protect, authorize("FISHERMAN","OFFICER", "SYSTEM_ADMIN"), validate(v.update), ctrl.update);
@@ -22,7 +23,3 @@ router.delete("/:reportId", protect, validate(v.getById), ctrl.remove);
 
 
 module.exports = router;
-
-//test
-
-//test22
