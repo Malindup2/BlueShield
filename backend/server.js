@@ -1,14 +1,12 @@
-const dotenv = require('dotenv');
+require('dotenv').config();
 const connectDB = require('./src/config/db');
-const app = require('./src/app');
 
 //hotfix on Anjulas Device - DNS resolution issue - not connecting to MongoDB Atlas cluster, added custom DNS servers (Cloudflare and Google) to bypass local DNS issues. This is a temporary workaround until the underlying DNS issue is resolved on the device.
 const dns = require("dns");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 //hotfix end
 
-
-dotenv.config();
+const app = require('./src/app');
 
 connectDB();
 
