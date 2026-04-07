@@ -6,6 +6,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import CreateReport from "./pages/SubmitAReport";
+import MyReports from "./pages/MyReports";
 
 // Layout & Protection
 import DashboardLayout from "./components/layout/DashboardLayout";
@@ -50,6 +51,15 @@ export default function App() {
                   <CreateReport />
                 </ProtectedRoute>
               } 
+            />
+
+            <Route
+              path="my-reports"
+              element={
+                <ProtectedRoute allowedRoles={["FISHERMAN", "OFFICER", "SYSTEM_ADMIN"]}>
+                  <MyReports />
+                </ProtectedRoute>
+              }
             />
 
             {/* FISHERMAN */}

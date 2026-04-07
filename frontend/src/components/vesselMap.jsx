@@ -58,18 +58,49 @@ export default function VesselMap({ onLocationSelect, onVesselSelect, showGetLoc
         return;
       }
 
+      const vesselName = vessel.NAME || vessel.name || 'Unknown Vessel';
+      const vesselMmsi = vessel.MMSI || vessel.mmsi || 'N/A';
+
       const vesselEl = document.createElement('div');
       vesselEl.className = 'marker-vessel';
+      vesselEl.style.cursor = 'pointer';
       vesselEl.innerHTML = `
-        <div style="
-          width: 24px;
-          height: 24px;
-          background: #10b981;
-          border: 2px solid white;
-          border-radius: 50%;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.35);
-        "></div>
+        <div style="position: relative;">
+          <div style="
+            width: 24px;
+            height: 24px;
+            background: #10b981;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+          "></div>
+          <div class="vessel-tooltip" style="
+            display: none;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 100;
+          ">
+            <div style="font-weight: 600;">${vesselName}</div>
+            <div style="opacity: 0.8; font-size: 11px;">MMSI: ${vesselMmsi}</div>
+          </div>
+        </div>
       `;
+
+      vesselEl.addEventListener('mouseenter', () => {
+        vesselEl.querySelector('.vessel-tooltip').style.display = 'block';
+      });
+      vesselEl.addEventListener('mouseleave', () => {
+        vesselEl.querySelector('.vessel-tooltip').style.display = 'none';
+      });
 
       new mapboxgl.Marker({ element: vesselEl })
         .setLngLat([lng, lat])
@@ -77,13 +108,13 @@ export default function VesselMap({ onLocationSelect, onVesselSelect, showGetLoc
 
       vesselEl.addEventListener('click', () => {
         onVesselSelect({
-          mmsi: vessel.MMSI,
-          name: vessel.NAME || vessel.name,
+          mmsi: vesselMmsi,
+          name: vesselName,
           latitude: lat,
           longitude: lng,
           type: vessel.TYPE || vessel.type,
         });
-        toast.success(`Vessel "${vessel.NAME || vessel.name || 'Unknown'}" selected`);
+        toast.success(`Vessel "${vesselName}" selected`);
       });
     });
   };
@@ -97,7 +128,7 @@ export default function VesselMap({ onLocationSelect, onVesselSelect, showGetLoc
     setIsFindingVessels(true);
     try {
       // Create bounding box around selected point
-      const delta = 0.5; // ~55km at equator
+      const delta = 0.15; // ~16km at equator
       const minlat = selectedPoint.lat - delta;
       const maxlat = selectedPoint.lat + delta;
       const minlon = selectedPoint.lng - delta;
