@@ -1,33 +1,32 @@
 import React from "react";
 import { Navigate, useLocation, Outlet } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 /**
  * A wrapper for routes that require specific roles to access.
- * Usage: <Route element={<ProtectedRoute allowedRoles={['OFFICER', 'SYSTEM_ADMIN']} />} > ...
  */
 export default function ProtectedRoute({ allowedRoles = [], children }) {
+  const { user, loading } = useAuth();
   const location = useLocation();
 
-  // TODO: Replace with real Auth Context/JWT checking
-  // Using localStorage as a temporary mock for the structural layout
-  const isAuthenticated = !!localStorage.getItem("token");
-  const userRole = localStorage.getItem("userRole");
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
-
-  // 1. If no token, bounce to login
-  if (!isAuthenticated) {
+  // 1. If no user, bounce to login
+  if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 2. If token exists but role is not in the allowed list, bounce to a fallback
-  if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
-    // If they have a token but wrong role, send them back to their appropriate home
-    // For now, we'll send them to a generic access-denied or root
+  // 2. If user exists but role is not in the allowed list, bounce to home
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 
-  // 3. If authenticated and role is allowed, render the children (Outlet)
-  // We use Outlet implicitly via React Router v6 by rendering children if passed, 
-  // or Outlet if used as a Layout route
+  // 3. If authenticated and role is allowed, render the children or Outlet
   return children ? children : <Outlet />;
 }

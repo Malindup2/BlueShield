@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Home, Map, FileWarning, FileText, Users, Settings,
-  LayoutDashboard, Briefcase, Sparkles, Fingerprint, CheckCircle
+  LayoutDashboard, Briefcase, Sparkles, Fingerprint, CheckCircle, MapPin
 } from "lucide-react";
 
 const MENU_ITEMS = [
@@ -13,7 +13,7 @@ const MENU_ITEMS = [
 
   // OFFICER
   { title: "Overview", path: "/dashboard/officer", icon: <LayoutDashboard className="w-5 h-5" />, roles: ["OFFICER"] },
-  { title: "Report Incident", path: "/dashboard/report", icon: <FileWarning className="w-5 h-5" />, roles: ["OFFICER"] },
+  { title: "Reported Incidents", path: "/dashboard/officer/reported-incidents", icon: <MapPin className="w-5 h-5" />, roles: ["OFFICER"] },
   { title: "Cases", path: "/dashboard/officer/cases", icon: <Briefcase className="w-5 h-5" />, roles: ["OFFICER"] },
   { title: "Team", path: "/dashboard/officer/team", icon: <Users className="w-5 h-5" />, roles: ["OFFICER"] },
   { title: "Evidence", path: "/dashboard/officer/evidence", icon: <Fingerprint className="w-5 h-5" />, roles: ["OFFICER"] },

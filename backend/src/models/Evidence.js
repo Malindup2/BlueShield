@@ -89,8 +89,23 @@ const evidenceSchema = new mongoose.Schema(
 evidenceSchema.pre("save", async function () {
   if (!this.isNew || this.referenceNumber) return;
   const year = new Date().getFullYear();
-  const count = await mongoose.model("Evidence").countDocuments();
-  this.referenceNumber = `EV-${year}-${String(count + 1).padStart(5, "0")}`;
+  
+  // Find the record with the highest reference number for the current year
+  const lastEvidence = await mongoose.model("Evidence")
+    .findOne({ referenceNumber: new RegExp(`^EV-${year}-`) })
+    .sort("-referenceNumber")
+    .exec();
+
+  let nextNum = 1;
+  if (lastEvidence && lastEvidence.referenceNumber) {
+    const parts = lastEvidence.referenceNumber.split("-");
+    const lastNum = parseInt(parts[2], 10);
+    if (!isNaN(lastNum)) {
+      nextNum = lastNum + 1;
+    }
+  }
+
+  this.referenceNumber = `EV-${year}-${String(nextNum).padStart(5, "0")}`;
 });
 
 // Indexes for efficient queries

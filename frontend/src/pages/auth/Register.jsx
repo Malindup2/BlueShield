@@ -2,10 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, User, UserCircle, ArrowRight, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
-import axios from "axios";
 import toast from "react-hot-toast";
-
-const API_URL = "http://localhost:5000/api/auth";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -17,6 +15,7 @@ export default function Register() {
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   const roles = [
     { id: "FISHERMAN", label: "Fisherman" },
@@ -34,13 +33,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/register`, formData);
-      const data = response.data;
-
-      // Save token to local storage
-      localStorage.setItem("user", JSON.stringify(data));
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("userRole", data.role);
+      const data = await register(formData);
 
       toast.success("Account created successfully!");
 

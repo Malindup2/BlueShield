@@ -17,6 +17,7 @@ import OfficerCases from "./pages/dashboards/officer/OfficerCases";
 import OfficerTeam from "./pages/dashboards/officer/OfficerTeam";
 import OfficerEvidence from "./pages/dashboards/officer/OfficerEvidence";
 import OfficerAIRisk from "./pages/dashboards/officer/OfficerAIRisk";
+import OfficerReportedIncidents from "./pages/dashboards/officer/OfficerReportedIncidents";
 
 // Illegal Admin pages
 import IllegalAdminHome from "./pages/dashboards/illegal-admin/IllegalAdminHome";
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="officer/team" element={<ProtectedRoute allowedRoles={["OFFICER"]}><OfficerTeam /></ProtectedRoute>} />
             <Route path="officer/evidence" element={<ProtectedRoute allowedRoles={["OFFICER"]}><OfficerEvidence /></ProtectedRoute>} />
             <Route path="officer/ai-risk" element={<ProtectedRoute allowedRoles={["OFFICER"]}><OfficerAIRisk /></ProtectedRoute>} />
+            <Route path="officer/reported-incidents" element={<ProtectedRoute allowedRoles={["OFFICER"]}><OfficerReportedIncidents /></ProtectedRoute>} />
 
             {/* ILLEGAL ADMIN */}
             <Route path="illegal-admin" element={<ProtectedRoute allowedRoles={ILLEGAL_ROLES}><IllegalAdminHome /></ProtectedRoute>} />
