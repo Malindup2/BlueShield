@@ -61,11 +61,18 @@ const reportSchema = new mongoose.Schema(
 
     attachments: [
       {
-        url: String,
-        type: String,
+        url: { type: String },
+        type: { type: String },
         uploadedAt: { type: Date, default: Date.now },
       },
     ],
+
+    vessel: {
+      name: { type: String, trim: true },
+      mmsi: { type: String, trim: true },
+      latitude: { type: Number },
+      longitude: { type: Number },
+    },
 
     isAnonymous: {
       type: Boolean,
@@ -79,5 +86,3 @@ reportSchema.index({ location: "2dsphere" });
 reportSchema.index({ reportType: 1, status: 1 });
 
 module.exports = mongoose.model("Report", reportSchema);
-//push test
-//push test
