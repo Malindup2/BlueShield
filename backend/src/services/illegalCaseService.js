@@ -110,6 +110,7 @@ exports.listCases = async ({ query }) => {
   const filter = {};
   if (query.status) filter.status = query.status;
   if (query.severity) filter.severity = query.severity;
+  if (query.assignedOfficer) filter.assignedOfficer = query.assignedOfficer;
   const sort = query.sort || "-createdAt";
   const [items, total] = await Promise.all([
     IllegalCase.find(filter)

@@ -1,12 +1,12 @@
-const dotenv = require('dotenv');
-const connectDB = require('./src/config/db');
-const app = require('./src/app'); // ✅ use app from app.js
+require('dotenv').config();
 
-// DNS Fix (keep this)
+const connectDB = require('./src/config/db');
+const app = require('./src/app');
+
+// DNS Fix
 const dns = require("dns");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
-
-dotenv.config();
+//hotfix end
 
 // Connect DB
 connectDB();

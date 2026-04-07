@@ -44,7 +44,10 @@ exports.createFromCase = async (req, res) => {
 
 exports.list = async (req, res) => {
   try {
-    const result = await enforcementService.list({ query: req.query });
+    const result = await enforcementService.list({ 
+      query: req.query,
+      user: req.user 
+    });
     res.json(result);
   } catch (e) {
     res.status(500).json({ message: e.message });
