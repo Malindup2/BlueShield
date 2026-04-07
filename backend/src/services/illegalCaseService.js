@@ -34,13 +34,23 @@ exports.getPendingReports = async () => {
   return reports.map((r) => ({ ...r.toObject(), illegalCase: caseMap[r._id.toString()] || null }));
 };
 
-// Mark as reviewed — also sets report status to REJECTED
+/**
+ * FIX: Use findByIdAndUpdate instead of report.save() to avoid Mongoose
+ * CastError caused by the attachments subdocument having a field named "type"
+ * which conflicts with Mongoose's reserved schema keyword.
+ * runValidators: false ensures only the status field is validated.
+ */
 exports.markAsReviewed = async ({ reportId }) => {
-  const report = await Report.findById(reportId);
-  if (!report) { const err = new Error("Report not found"); err.statusCode = 404; throw err; }
-
-  report.status = "REJECTED";
-  await report.save();
+  const report = await Report.findByIdAndUpdate(
+    reportId,
+    { $set: { status: "REJECTED" } },
+    { new: true, runValidators: false }
+  );
+  if (!report) {
+    const err = new Error("Report not found");
+    err.statusCode = 404;
+    throw err;
+  }
 
   const illegalCase = await IllegalCase.findOne({ baseReport: reportId });
   if (illegalCase) {
@@ -54,22 +64,37 @@ exports.markAsReviewed = async ({ reportId }) => {
 // Delete reviewed case card from dashboard (keeps Report document)
 exports.deleteReviewedCase = async ({ reportId }) => {
   const report = await Report.findById(reportId);
-  if (!report) { const err = new Error("Report not found"); err.statusCode = 404; throw err; }
+  if (!report) {
+    const err = new Error("Report not found");
+    err.statusCode = 404;
+    throw err;
+  }
   const illegalCase = await IllegalCase.findOneAndDelete({ baseReport: reportId });
   return { reportId, illegalCaseId: illegalCase ? illegalCase._id : null };
 };
 
 // ─── ILLEGAL CASE REVIEW RECORDS ─────────────────────────────────────────────
 
+/**
+ * FIX: Use findByIdAndUpdate instead of report.save() to avoid CastError.
+ */
 exports.createCase = async ({ reportId, payload, actorId }) => {
   const report = await Report.findById(reportId);
-  if (!report) { const err = new Error("Report not found"); err.statusCode = 404; throw err; }
+  if (!report) {
+    const err = new Error("Report not found");
+    err.statusCode = 404;
+    throw err;
+  }
   if (report.reportType !== "ILLEGAL_FISHING") {
-    const err = new Error("Only ILLEGAL_FISHING reports can be reviewed here"); err.statusCode = 400; throw err;
+    const err = new Error("Only ILLEGAL_FISHING reports can be reviewed here");
+    err.statusCode = 400;
+    throw err;
   }
   const existing = await IllegalCase.findOne({ baseReport: reportId });
   if (existing) {
-    const err = new Error("An illegal case review record already exists for this report"); err.statusCode = 409; throw err;
+    const err = new Error("An illegal case review record already exists for this report");
+    err.statusCode = 409;
+    throw err;
   }
 
   const newCase = await IllegalCase.create({
@@ -84,21 +109,32 @@ exports.createCase = async ({ reportId, payload, actorId }) => {
     createdBy: actorId,
   });
 
-  // Change report status to VERIFIED when case record is created
-  report.status = "VERIFIED";
-  await report.save();
+  // FIX: Use findByIdAndUpdate to avoid CastError on attachments
+  await Report.findByIdAndUpdate(
+    reportId,
+    { $set: { status: "VERIFIED" } },
+    { runValidators: false }
+  );
 
   return newCase;
 };
 
 exports.updateCase = async ({ caseId, payload }) => {
   const illegalCase = await IllegalCase.findById(caseId);
-  if (!illegalCase) { const err = new Error("Illegal case not found"); err.statusCode = 404; throw err; }
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
   if (illegalCase.status !== "OPEN") {
-    const err = new Error("Record can only be updated when status is OPEN"); err.statusCode = 403; throw err;
+    const err = new Error("Record can only be updated when status is OPEN");
+    err.statusCode = 403;
+    throw err;
   }
   const allowedUpdates = ["title", "description", "vesselId", "vesselType", "severity"];
-  allowedUpdates.forEach((field) => { if (payload[field] !== undefined) illegalCase[field] = payload[field]; });
+  allowedUpdates.forEach((field) => {
+    if (payload[field] !== undefined) illegalCase[field] = payload[field];
+  });
   await illegalCase.save();
   return illegalCase;
 };
@@ -123,21 +159,39 @@ exports.listCases = async ({ query }) => {
   return { page, limit, total, items };
 };
 
+/**
+ * FIX: Use .lean() so trackedVesselData (Mixed type) is returned as a plain
+ * JavaScript object instead of a Mongoose Document. Without .lean(), accessing
+ * vessel.imo etc. works in JS but JSON.stringify returns {} because Mongoose
+ * wraps Mixed fields — causing empty values in the frontend textMap.
+ */
 exports.getCaseById = async (caseId) => {
   const doc = await IllegalCase.findById(caseId)
     .populate("baseReport")
     .populate("createdBy", "name email role")
     .populate("assignedOfficer", "name email role")
-    .populate("escalatedBy", "name email");
-  if (!doc) { const err = new Error("Illegal case not found"); err.statusCode = 404; throw err; }
+    .populate("escalatedBy", "name email")
+    .lean(); // ensures trackedVesselData is a plain JS object, not Mongoose wrapper
+
+  if (!doc) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
   return doc;
 };
 
 exports.deleteCase = async ({ caseId }) => {
   const illegalCase = await IllegalCase.findById(caseId);
-  if (!illegalCase) { const err = new Error("Illegal case not found"); err.statusCode = 404; throw err; }
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
   if (illegalCase.status === "ESCALATED") {
-    const err = new Error("Cannot delete a record while it is escalated."); err.statusCode = 403; throw err;
+    const err = new Error("Cannot delete a record while it is escalated.");
+    err.statusCode = 403;
+    throw err;
   }
   await IllegalCase.findByIdAndDelete(caseId);
   return { id: caseId };
@@ -153,17 +207,36 @@ exports.getOfficers = async () => {
 
 exports.escalateCase = async ({ caseId, officerId, actorId }) => {
   const illegalCase = await IllegalCase.findById(caseId);
-  if (!illegalCase) { const err = new Error("Illegal case not found"); err.statusCode = 404; throw err; }
-  if (illegalCase.status === "ESCALATED") { const err = new Error("Case is already escalated"); err.statusCode = 409; throw err; }
-  if (illegalCase.status === "RESOLVED") { const err = new Error("Cannot escalate a resolved case"); err.statusCode = 403; throw err; }
-  if (!illegalCase.trackButtonUsed) {
-    const err = new Error("Please track the vessel data before escalating the case"); err.statusCode = 400; throw err;
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
   }
-  if (!officerId) { const err = new Error("Please assign an officer to escalate the case further"); err.statusCode = 400; throw err; }
-
+  if (illegalCase.status === "ESCALATED") {
+    const err = new Error("Case is already escalated");
+    err.statusCode = 409;
+    throw err;
+  }
+  if (illegalCase.status === "RESOLVED") {
+    const err = new Error("Cannot escalate a resolved case");
+    err.statusCode = 403;
+    throw err;
+  }
+  if (!illegalCase.trackButtonUsed) {
+    const err = new Error("Please track the vessel data before escalating the case");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!officerId) {
+    const err = new Error("Please assign an officer to escalate the case further");
+    err.statusCode = 400;
+    throw err;
+  }
   const officer = await User.findById(officerId);
   if (!officer || officer.role !== "OFFICER") {
-    const err = new Error("Selected user is not a valid officer"); err.statusCode = 400; throw err;
+    const err = new Error("Selected user is not a valid officer");
+    err.statusCode = 400;
+    throw err;
   }
 
   illegalCase.assignedOfficer = officerId;
@@ -172,35 +245,42 @@ exports.escalateCase = async ({ caseId, officerId, actorId }) => {
   illegalCase.escalatedBy = actorId;
   await illegalCase.save();
 
-  // Sync report status to UNDER_REVIEW when case is escalated
+  // FIX: Use findByIdAndUpdate to avoid CastError on attachments
   if (illegalCase.baseReport) {
-    await Report.findByIdAndUpdate(illegalCase.baseReport, { status: "UNDER_REVIEW" });
+    await Report.findByIdAndUpdate(
+      illegalCase.baseReport,
+      { $set: { status: "UNDER_REVIEW" } },
+      { runValidators: false }
+    );
   }
 
   return IllegalCase.findById(caseId)
     .populate("assignedOfficer", "name email role")
-    .populate("escalatedBy", "name email");
+    .populate("escalatedBy", "name email")
+    .lean();
 };
 
-// ─── RESOLVE (called by enforcement webhook) ───────────────────────────────────
+// ─── RESOLVE ─────────────────────────────────────────────────────────────────
 
-/**
- * Called when an enforcement record reaches CLOSED_RESOLVED.
- * Sets the linked IllegalCase to RESOLVED and syncs the base Report to RESOLVED.
- */
 exports.resolveCase = async ({ caseId }) => {
   const illegalCase = await IllegalCase.findById(caseId);
-  if (!illegalCase) { const err = new Error("Illegal case not found"); err.statusCode = 404; throw err; }
-
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
   illegalCase.status = "RESOLVED";
   illegalCase.isReviewed = true;
   await illegalCase.save();
 
-  // Sync base report to RESOLVED
+  // FIX: Use findByIdAndUpdate to avoid CastError on attachments
   if (illegalCase.baseReport) {
-    await Report.findByIdAndUpdate(illegalCase.baseReport, { status: "RESOLVED" });
+    await Report.findByIdAndUpdate(
+      illegalCase.baseReport,
+      { $set: { status: "RESOLVED" } },
+      { runValidators: false }
+    );
   }
-
   return illegalCase;
 };
 
@@ -208,13 +288,23 @@ exports.resolveCase = async ({ caseId }) => {
 
 exports.trackVessel = async ({ caseId }) => {
   const illegalCase = await IllegalCase.findById(caseId);
-  if (!illegalCase) { const err = new Error("Illegal case not found"); err.statusCode = 404; throw err; }
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
   if (illegalCase.trackButtonUsed) {
-    const err = new Error("Vessel has already been tracked for this case. This action is permanent."); err.statusCode = 409; throw err;
+    const err = new Error("Vessel has already been tracked for this case. This action is permanent.");
+    err.statusCode = 409;
+    throw err;
   }
 
   const selectedUrl = VESSEL_API_URLS[illegalCase.severity];
-  if (!selectedUrl) { const err = new Error("Invalid severity"); err.statusCode = 400; throw err; }
+  if (!selectedUrl) {
+    const err = new Error("Invalid severity");
+    err.statusCode = 400;
+    throw err;
+  }
 
   let vesselData, dataSource;
   try {
@@ -243,6 +333,10 @@ exports.addNote = async ({ caseId, content }) => {
     { $push: { reviewNotes: { content, addedAt: new Date() } } },
     { new: true, runValidators: true }
   );
-  if (!illegalCase) { const err = new Error("Illegal case not found"); err.statusCode = 404; throw err; }
+  if (!illegalCase) {
+    const err = new Error("Illegal case not found");
+    err.statusCode = 404;
+    throw err;
+  }
   return illegalCase;
 };
