@@ -41,13 +41,18 @@ exports.createFromCase = async ({ caseId, officerId }) => {
   return exports.create({ relatedCase: caseId, leadOfficer: officerId, actorId: officerId });
 };
 
-exports.list = async ({ query }) => {
+exports.list = async ({ query, user }) => {
   const page = Math.max(parseInt(query.page || "1", 10), 1);
   const limit = Math.min(Math.max(parseInt(query.limit || "10", 10), 1), 50);
   const skip = (page - 1) * limit;
 
   const filter = {};
   if (query.status) filter.status = query.status;
+  
+  // Role-based filtering: Officers only see their assigned cases
+  if (user && user.role === "OFFICER") {
+    filter.leadOfficer = user._id;
+  }
 
   const sort = query.sort || "-createdAt";
 
