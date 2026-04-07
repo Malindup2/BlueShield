@@ -8,6 +8,7 @@ exports.create = async (req, res) => {
             reportedBy: req.user._id  
         });
         await report.save();
+        res.send("Report created successfully");
         res.status(201).json(report);
     } catch (error) {
         res.status(400).json({ message: error.message });
