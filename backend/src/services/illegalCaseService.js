@@ -17,6 +17,27 @@ const FALLBACK_DATA = {
   CRITICAL: { imo: "IMO4444444", vesselType: "Industrial Trawler", registeredOwner: "Deep Sea Exploiters Corp", riskCategory: "critical", previousViolations: 8 },
 };
 
+/**
+ * Validates that the data returned by the external vessel API is a proper
+ * vessel object and not Beeceptor's default unconfigured text response.
+ *
+ * Beeceptor returns a plain string like:
+ *   "Hey ya! Great to see you here. Btw, nothing is configured for this req…"
+ * when the mock endpoint has no response configured. Saving that string into
+ * the Mongoose Mixed field causes trackedVesselData to be stored as a string,
+ * which makes vessel?.imo === undefined on the frontend → only labels shown.
+ *
+ * A valid vessel response must:
+ *   1. Be a plain object (not a string, array, or null)
+ *   2. Have at least one of the known vessel fields present and non-empty
+ */
+function isValidVesselResponse(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  // At least one known vessel field must be present and truthy
+  const knownFields = ["imo", "vesselType", "registeredOwner", "riskCategory"];
+  return knownFields.some((field) => data[field] !== undefined && data[field] !== null && data[field] !== "");
+}
+
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 
 exports.getPendingReports = async () => {
@@ -163,7 +184,14 @@ exports.listCases = async ({ query }) => {
  * FIX: Use .lean() so trackedVesselData (Mixed type) is returned as a plain
  * JavaScript object instead of a Mongoose Document. Without .lean(), accessing
  * vessel.imo etc. works in JS but JSON.stringify returns {} because Mongoose
- * wraps Mixed fields — causing empty values in the frontend textMap.
+ * wraps Mixed fields — causing empty values in the frontend.
+ *
+ * EXTRA SAFETY: If trackedVesselData stored in DB is not a valid vessel object
+ * (e.g. it was saved as a string due to a bad Beeceptor response in the past),
+ * we normalise it to null so the frontend treats it as "not yet tracked".
+ * Note: trackButtonUsed stays true so the button remains disabled — we don't
+ * allow re-tracking, but we show a clear "data unavailable" state instead of
+ * showing corrupted/empty data.
  */
 exports.getCaseById = async (caseId) => {
   const doc = await IllegalCase.findById(caseId)
@@ -171,13 +199,26 @@ exports.getCaseById = async (caseId) => {
     .populate("createdBy", "name email role")
     .populate("assignedOfficer", "name email role")
     .populate("escalatedBy", "name email")
-    .lean(); // ensures trackedVesselData is a plain JS object, not Mongoose wrapper
+    .lean(); // returns plain JS objects — Mixed fields are not Mongoose-wrapped
 
   if (!doc) {
     const err = new Error("Illegal case not found");
     err.statusCode = 404;
     throw err;
   }
+
+  // Normalise corrupted trackedVesselData (stored as string from bad API response)
+  // so the frontend always receives either a valid object or null — never a string/{}
+  if (doc.trackedVesselData !== null && doc.trackedVesselData !== undefined) {
+    if (!isValidVesselResponse(doc.trackedVesselData)) {
+      console.warn(
+        `[getCaseById] trackedVesselData for case ${caseId} is not a valid vessel object. ` +
+        `Stored value type: ${typeof doc.trackedVesselData}. Normalising to null for frontend.`
+      );
+      doc.trackedVesselData = null;
+    }
+  }
+
   return doc;
 };
 
@@ -286,6 +327,45 @@ exports.resolveCase = async ({ caseId }) => {
 
 // ─── VESSEL TRACKING ──────────────────────────────────────────────────────────
 
+/**
+ * CORE FIX for the intermittent "only labels shown, no data" bug.
+ *
+ * ROOT CAUSE:
+ * Beeceptor is a free mock API service. When an endpoint is not configured,
+ * or when the service is temporarily in its default state, it returns a plain
+ * text string instead of JSON:
+ *   "Hey ya! Great to see you here. Btw, nothing is configured for this req…"
+ *
+ * Previously the code did:
+ *   vesselData = response.data;           // axios parses text as a string
+ *   illegalCase.trackedVesselData = vesselData;  // stores STRING in Mixed field
+ *   await illegalCase.save();
+ *
+ * This stored a string in MongoDB. Later, getCaseById fetches it and the
+ * frontend does vessel?.imo — which is undefined on a string → only labels shown.
+ * The fallback also never triggered because no exception was thrown (axios
+ * succeeded with a 200 text response).
+ *
+ * FIXES APPLIED:
+ *
+ * FIX 1 — Validate API response shape BEFORE deciding to use it.
+ *   isValidVesselResponse() checks that the returned data is a plain object
+ *   with at least one known vessel field. If Beeceptor returns a text string
+ *   or an empty/unexpected object, this returns false and we fall back
+ *   immediately to FALLBACK_DATA — silently, with no error exposed to frontend.
+ *
+ * FIX 2 — Force plain JS object before saving (JSON.parse(JSON.stringify)).
+ *   Eliminates any Mongoose proxy/wrapper artifacts that could cause the Mixed
+ *   field to serialize incorrectly when using .save().
+ *
+ * FIX 3 — Use findByIdAndUpdate with $set instead of .save() for the Mixed field.
+ *   Mongoose's Mixed type has a known quirk: when you assign a new object to a
+ *   Mixed field and call .save(), Mongoose may not detect the change as "dirty"
+ *   (you'd normally need illegalCase.markModified('trackedVesselData')).
+ *   findByIdAndUpdate with $set bypasses this entirely — it always writes
+ *   exactly what you pass, with no schema casting or dirty-detection involved.
+ *   This is the same pattern used for Report status updates elsewhere.
+ */
 exports.trackVessel = async ({ caseId }) => {
   const illegalCase = await IllegalCase.findById(caseId);
   if (!illegalCase) {
@@ -306,23 +386,58 @@ exports.trackVessel = async ({ caseId }) => {
     throw err;
   }
 
-  let vesselData, dataSource;
+  let vesselData;
+  let dataSource;
+
   try {
     const response = await axios.get(selectedUrl, { timeout: 10000 });
-    vesselData = response.data;
-    dataSource = "external_api";
-    console.log(`[trackVessel] External API success severity=${illegalCase.severity}`);
+    const rawData = response.data;
+
+    // FIX 1: Validate the response is a proper vessel object.
+    // Beeceptor sometimes returns its default text message or an unconfigured
+    // response instead of the mock JSON. If that happens, treat it as a
+    // failure and use fallback — silently, without exposing anything to frontend.
+    if (isValidVesselResponse(rawData)) {
+      // FIX 2: Force a plain JS object to eliminate any proxy/wrapper artifacts
+      vesselData = JSON.parse(JSON.stringify(rawData));
+      dataSource = "external_api";
+      console.log(`[trackVessel] External API success severity=${illegalCase.severity}`);
+    } else {
+      // API responded but with invalid/unexpected data (e.g. Beeceptor default text)
+      console.warn(
+        `[trackVessel] External API returned invalid vessel data for severity=${illegalCase.severity}. ` +
+        `Response type: ${typeof rawData}. Using fallback.`
+      );
+      vesselData = FALLBACK_DATA[illegalCase.severity];
+      dataSource = "fallback";
+    }
   } catch (apiError) {
-    console.warn(`[trackVessel] Fallback used: ${apiError.message}`);
+    // API call failed entirely (timeout, network error, etc.) — use fallback
+    console.warn(`[trackVessel] External API call failed: ${apiError.message}. Using fallback.`);
     vesselData = FALLBACK_DATA[illegalCase.severity];
     dataSource = "fallback";
   }
 
-  illegalCase.trackedVesselData = vesselData;
-  illegalCase.trackButtonUsed = true;
-  await illegalCase.save();
+  // FIX 3: Use findByIdAndUpdate with $set for the Mixed field.
+  // This avoids Mongoose's dirty-detection issue with Mixed types and guarantees
+  // the plain object is written exactly as-is to MongoDB, with no schema casting.
+  await IllegalCase.findByIdAndUpdate(
+    caseId,
+    {
+      $set: {
+        trackedVesselData: vesselData,
+        trackButtonUsed: true,
+      },
+    },
+    { new: true, runValidators: false }
+  );
 
-  return { vesselData, severity: illegalCase.severity, trackedAt: new Date(), dataSource };
+  return {
+    vesselData,
+    severity: illegalCase.severity,
+    trackedAt: new Date(),
+    dataSource,
+  };
 };
 
 // ─── NOTES ────────────────────────────────────────────────────────────────────
