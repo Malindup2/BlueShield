@@ -127,89 +127,188 @@ All protected routes require a JWT in the `Authorization` header:
 
 ## API Components & Endpoints
 
-### 1. Core Auth & Incident Intake (Gateway)
-Session management, unified routing for user reports. Integrates with Mapbox Reverse Geocoding.
+### API Reference
 
-#### Auth Endpoints
-- `POST /auth/register` — Register user
-- `POST /auth/login` — Login
-- `GET /auth/me` — Get profile (protected)
+The complete, current API reference is documented in [docs/swagger.yaml](docs/swagger.yaml).
 
-#### Incident Report Endpoints
-- `POST /reports` — Submit report (protected: FISHERMAN)
-- `GET /reports` — List all reports (protected: SYSTEM_ADMIN, OFFICER)
-- `GET /reports/my-reports` — My reports (protected: FISHERMAN)
-- `GET /reports/:id` — Get report by ID (protected)
-- `PATCH /reports/:id/status` — Update status (protected: SYSTEM_ADMIN)
-- `DELETE /reports/:id` — Delete (protected: FISHERMAN owner or SYSTEM_ADMIN)
+The README keeps the human-readable route summary below so each endpoint is clear at a glance.
 
-### 2. Illegal Case Review & Escalation
-Investigate unauthorized fishing, simulate vessel tracking using Beeceptor external API. Escalate the case to a specific officer.
+### 1. Auth & Session Management
 
-#### Endpoints
+#### `POST /api/auth/register`
+Registers a new user account and returns a JWT for immediate login.
 
-- `POST /api/illegal-cases/reports/:reportId/review` - New illegal case review record
-- `GET /api/illegal-cases` - List of all records
-- `GET /api/illegal-cases/:caseId` - Record details
-- `PATCH /api/illegal-cases/:caseId` - Update record
-- `DELETE /api/illegal-cases/:caseId` - Delete record
-- `POST /api/illegal-cases/:caseId/track` - Fetch vessel data
-- `GET /api/illegal-cases/officers` - Get all officers
-- `POST /api/illegal-cases/:caseId/escalate` - escalate to a specific officer
-- `POST /api/illegal-cases/:caseId/notes` - Add a reference note
+#### `POST /api/auth/login`
+Authenticates a user with email and password and returns the user profile plus token.
 
+#### `GET /api/auth/me`
+Returns the currently authenticated user profile.
 
-### 3. Legal Enforcement & Risk Scoring
-Enforcement actions, fines, risk scoring. Integrates with Google Gemini API and Cloudinary.
+### 2. Reports
 
-#### Endpoints
-**Main Enforcement CRUD**
-- `POST /api/enforcements` — Create new enforcement (protected: OFFICER, SYSTEM_ADMIN)
-- `GET /api/enforcements` — List enforcements (protected: OFFICER, SYSTEM_ADMIN, ILLEGAL_ADMIN)
-- `GET /api/enforcements/:id` — Get enforcement by ID
-- `PATCH /api/enforcements/:id` — Update enforcement details
-- `DELETE /api/enforcements/:id` — Delete enforcement (protected: OFFICER, SYSTEM_ADMIN)
+#### `POST /api/reports`
+Creates a new incident report with title, description, type, severity, and optional location data.
 
-**Workflow & AI**
-- `POST /api/enforcements/from-case/:caseId` — Create enforcement from an illegal case
-- `PATCH /api/enforcements/:id/close` — Close enforcement with outcome and penalty
-- `POST /api/enforcements/:id/risk-score` — Generate AI risk score using Gemini
+#### `GET /api/reports`
+Lists reports for authorized users so they can review submitted incidents.
 
-**Actions Log**
-- `POST /api/enforcements/:id/actions` — Log an enforcement action (e.g., FINE_ISSUED)
-- `PATCH /api/enforcements/:id/actions/:actionId` — Update an action
-- `DELETE /api/enforcements/:id/actions/:actionId` — Remove an action
+#### `GET /api/reports/:reportId`
+Fetches the details of one report by its ID.
 
-**Evidence Management (Cloudinary Integration)**
-- `GET /api/enforcements/:id/evidence` — List attached evidence
-- `POST /api/enforcements/:id/evidence` — Upload evidence file (Multipart form-data)
-- `PATCH /api/enforcements/:id/evidence/:evidenceId` — Update evidence status 
-- `DELETE /api/enforcements/:id/evidence/:evidenceId` — Delete evidence and remove file from Cloudinary
+#### `PATCH /api/reports/:reportId`
+Updates an existing report with new information, such as status or extra details.
 
-**Team Management**
-- `GET /api/enforcements/:id/team` — List assigned team members
-- `POST /api/enforcements/:id/team` — Assign officer to enforcement team
-- `PATCH /api/enforcements/:id/team/:memberId` — Update team member status/hours
-- `DELETE /api/enforcements/:id/team/:memberId` — Remove officer from team
+#### `DELETE /api/reports/:reportId`
+Deletes a report record after authentication and application-level ownership checks.
 
+### 3. Illegal Case Review & Escalation
 
-### 4. Hazard & Marine Safety Management
-Environmental hazards, SOS, restricted zones. Integrates with Open-Meteo Marine API.
+#### `GET /api/illegal-cases/reports/pending`
+Returns reports that are waiting for illegal-case review.
 
-#### Endpoints
-- `POST /api/hazards/from-report/:reportId` — Create a verified hazard case from an approved hazard
-- `GET /api/hazards` — List all hazard cases
-- `GET /api/hazards/:id` — Get a hazard case by ID
-- `PATCH /api/hazards/:id` — Update hazard case details
-- `GET /api/hazards/:id/weather` — Fetch live sea/weather conditions for the hazard location
-- `PATCH /api/hazards/:id/resolve` — resolve hazard mark related report as resolved and disable linked active zones
-- `DELETE /api/hazards/:id` — Delete a hazard case permanently
+#### `PATCH /api/illegal-cases/reports/:reportId/mark-reviewed`
+Marks a submitted report as reviewed.
 
-- `POST /api/zones` — Create a hazard zone for a hazard case
-- `GET /api/zones` — List zones (GeoJSON for map display)
-- `GET /api/zones/:id` — Get a zone by ID
-- `PATCH /api/zones/:id` — Update zone details or disable a zone
-- `DELETE /api/zones/:id` — Delete a zone permanently
+#### `DELETE /api/illegal-cases/reports/:reportId`
+Removes a reviewed report entry from the illegal-case workflow.
+
+#### `GET /api/illegal-cases/officers`
+Loads the officer list so administrators can assign a case.
+
+#### `POST /api/illegal-cases/reports/:reportId/review`
+Creates a new illegal case record from a report after review.
+
+#### `GET /api/illegal-cases`
+Lists all illegal case records for the illegal-admin dashboard.
+
+#### `GET /api/illegal-cases/:caseId`
+Returns the details of a single illegal case.
+
+#### `PATCH /api/illegal-cases/:caseId`
+Updates an existing illegal case record.
+
+#### `DELETE /api/illegal-cases/:caseId`
+Deletes an illegal case record.
+
+#### `POST /api/illegal-cases/:caseId/escalate`
+Escalates the case to a selected officer.
+
+#### `POST /api/illegal-cases/:caseId/resolve`
+Marks an illegal case as resolved.
+
+#### `POST /api/illegal-cases/:caseId/track`
+Triggers vessel tracking data for the case.
+
+#### `POST /api/illegal-cases/:caseId/notes`
+Adds a reference note or follow-up note to the case.
+
+### 4. Enforcement Workflow
+
+#### `GET /api/enforcements/stats/basic`
+Returns a basic enforcement summary for the dashboard.
+
+#### `GET /api/enforcements/stats/by-date`
+Returns enforcement metrics filtered by date range.
+
+#### `GET /api/enforcements/team/officers`
+Lists active officers who can be assigned to an enforcement.
+
+#### `POST /api/enforcements`
+Creates a new enforcement record for an illegal case.
+
+#### `GET /api/enforcements`
+Lists enforcement records for officers, system admins, and illegal admins.
+
+#### `GET /api/enforcements/:enforcementId`
+Fetches one enforcement record with its linked case and officer details.
+
+#### `PATCH /api/enforcements/:enforcementId`
+Updates the enforcement record.
+
+#### `DELETE /api/enforcements/:enforcementId`
+Deletes the enforcement record.
+
+#### `POST /api/enforcements/from-case/:caseId`
+Creates a new enforcement directly from an illegal case.
+
+#### `POST /api/enforcements/:enforcementId/actions`
+Adds a logged enforcement action such as a warning, arrest, seizure, or fine.
+
+#### `PATCH /api/enforcements/:enforcementId/actions/:actionId`
+Updates a previously logged enforcement action.
+
+#### `DELETE /api/enforcements/:enforcementId/actions/:actionId`
+Removes a logged enforcement action.
+
+#### `PATCH /api/enforcements/:enforcementId/close`
+Closes the enforcement and stores the final outcome, penalty, and notes.
+
+#### `POST /api/enforcements/:enforcementId/risk-score`
+Generates an AI risk score using the Gemini integration.
+
+#### `GET /api/enforcements/:enforcementId/evidence`
+Lists all evidence items attached to the enforcement.
+
+#### `POST /api/enforcements/:enforcementId/evidence`
+Uploads a new evidence item and its attachment data.
+
+#### `PATCH /api/enforcements/:enforcementId/evidence/:evidenceId`
+Updates an existing evidence item and any new uploaded files.
+
+#### `DELETE /api/enforcements/:enforcementId/evidence/:evidenceId`
+Deletes an evidence item and removes linked Cloudinary files.
+
+#### `GET /api/enforcements/:enforcementId/team`
+Lists the enforcement team members assigned to the case.
+
+#### `POST /api/enforcements/:enforcementId/team`
+Assigns an officer or team member to the enforcement.
+
+#### `PATCH /api/enforcements/:enforcementId/team/:memberId`
+Updates a team member's status, role, hours, or responsibilities.
+
+#### `DELETE /api/enforcements/:enforcementId/team/:memberId`
+Removes a team member from the enforcement.
+
+### 5. Hazard & Marine Safety
+
+#### `POST /api/hazards/from-report/:reportId`
+Creates a verified hazard record from an approved report.
+
+#### `GET /api/hazards`
+Lists all hazard records for hazard-admin users.
+
+#### `GET /api/hazards/:id`
+Fetches one hazard record by ID.
+
+#### `PATCH /api/hazards/:id`
+Updates the hazard details or handling status.
+
+#### `GET /api/hazards/:id/weather`
+Fetches live sea or weather conditions for the hazard location.
+
+#### `PATCH /api/hazards/:id/resolve`
+Marks the hazard as resolved and disables linked active zones.
+
+#### `DELETE /api/hazards/:id`
+Deletes a hazard record permanently.
+
+### 6. Zones
+
+#### `POST /api/zones`
+Creates a restricted or dangerous zone linked to a hazard.
+
+#### `GET /api/zones`
+Lists zones in a format suitable for map display.
+
+#### `GET /api/zones/:id`
+Fetches one zone by ID.
+
+#### `PATCH /api/zones/:id`
+Updates zone details or disables the zone.
+
+#### `DELETE /api/zones/:id`
+Deletes the zone permanently.
 
 ---
 
