@@ -46,6 +46,28 @@ function riskColor(risk) {
   }[risk?.toLowerCase()] || "text-slate-400");
 }
 
+/**
+ * FRONTEND GUARD: Validates that trackedVesselData from the API is a proper
+ * vessel object and not a string, empty object {}, or null.
+ *
+ * Even though the backend now normalises bad data in getCaseById, this guard
+ * adds a second layer of safety on the frontend in case old corrupted records
+ * exist in the DB that haven't been re-fetched after the backend fix, or if
+ * any edge case slips through.
+ *
+ * Returns the vessel object if valid, or null if the data is unusable.
+ */
+function extractValidVessel(trackedVesselData) {
+  if (!trackedVesselData) return null;
+  if (typeof trackedVesselData !== "object" || Array.isArray(trackedVesselData)) return null;
+  // Must have at least one known vessel field with a real value
+  const knownFields = ["imo", "vesselType", "registeredOwner", "riskCategory"];
+  const hasData = knownFields.some(
+    (f) => trackedVesselData[f] !== undefined && trackedVesselData[f] !== null && trackedVesselData[f] !== ""
+  );
+  return hasData ? trackedVesselData : null;
+}
+
 // ── PDF Generation ──────────────────────────────────────────────────────────
 function generatePDF(caseData) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -184,7 +206,8 @@ function generatePDF(caseData) {
   doc.text("SECTION 2 — VESSEL TRACKING STATISTICS", margin + 4, y + 5.5);
   y += 14;
 
-  const vessel = caseData.trackedVesselData;
+  // Use extractValidVessel so PDF also gets the same validation
+  const vessel = extractValidVessel(caseData.trackedVesselData);
   if (!vessel) {
     doc.setFillColor(255, 247, 237);
     doc.roundedRect(margin, y, contentW, 14, 2, 2, "F");
@@ -258,6 +281,7 @@ export default function IllegalCaseDetails() {
         getCaseRecordById(caseId),
         getOfficers(),
       ]);
+      console.debug("[IllegalCaseDetails] trackedVesselData:", caseRes.data?.trackedVesselData);
       setCaseData(caseRes.data);
       setOfficers(officersRes.data || []);
     } catch {
@@ -273,20 +297,19 @@ export default function IllegalCaseDetails() {
   const canDownloadPDF = !!caseData?.trackButtonUsed;
 
   /**
-   * Read vessel directly from caseData — this is always the latest value
-   * from fetchCase() and is used in both the textMap (for translation) and
-   * directly in the JSX (for guaranteed display even before translation resolves).
-   */
-  const vessel = caseData?.trackedVesselData;
-
-  /**
-   * textMap contains ALL strings that go through the translation system.
-   * Vessel data values ARE included here so they get translated when a
-   * non-English language is active.
+   * FRONTEND GUARD: Use extractValidVessel instead of raw caseData.trackedVesselData.
    *
-   * They are ALSO read directly from `vessel` in the JSX (see vesselRows below)
-   * as a fallback to ensure data always shows even if translation is in-flight.
+   * This protects against:
+   *   1. Old DB records where trackedVesselData was saved as a string (Beeceptor bug)
+   *   2. Empty objects {} that would make vessel?.imo === undefined
+   *   3. Any edge case where backend normalisation didn't catch a bad value
+   *
+   * If vessel is null: the "Track and fetch vessel info" prompt is shown.
+   * If vessel is a valid object: the data rows are shown.
+   * trackButtonUsed stays true regardless, so the button stays disabled.
    */
+  const vessel = extractValidVessel(caseData?.trackedVesselData);
+
   const textMap = useMemo(() => {
     if (!caseData) return {};
     return {
@@ -314,7 +337,7 @@ export default function IllegalCaseDetails() {
       labelOwner: "Registered Owner",
       labelRiskCategory: "Risk Category",
       labelViolations: "Previous Violations",
-      // Vessel data values — populated once tracking is done
+      // Vessel data values — populated once tracking returns valid data
       imoValue: vessel?.imo || "",
       vesselTypeDataValue: vessel?.vesselType || "",
       ownerValue: vessel?.registeredOwner || "",
@@ -405,19 +428,11 @@ export default function IllegalCaseDetails() {
   const pos = getLatLng();
 
   /**
-   * VESSEL DISPLAY FIX:
-   * Each row has:
-   *   labelKey  — translated label via t() (e.g. "IMO Number" → translated)
-   *   valueKey  — key in textMap/translations (used by t() for translated value)
-   *   directVal — direct read from vessel object (always current, never stale)
+   * Vessel rows: each has a label key (for translation), a value key (for
+   * translation cache lookup), and a directVal (always-current raw value).
    *
-   * We display: t(valueKey) if it returns a non-empty string, else directVal.
-   * This means:
-   *   - In English: t() returns textMap[valueKey] = vessel.imo etc. ✓
-   *   - In non-English after translation: t() returns translated string ✓
-   *   - In non-English while translation is in-flight: directVal shows raw data ✓
-   *   - After tracking while non-English active: directVal shows immediately,
-   *     then auto-retranslate (from useTranslation fix) replaces with translated ✓
+   * displayValue = t(valueKey) if non-empty (translated), else directVal (raw).
+   * This ensures vessel data is ALWAYS shown, even while translation is loading.
    */
   const vesselRows = vessel
     ? [
@@ -554,13 +569,7 @@ export default function IllegalCaseDetails() {
           </div>
         </div>
 
-        {/* SECTION 2 — Vessel Tracking
-         *
-         * DISPLAY FIX: Value cells use a helper that prefers t(valueKey) when
-         * it returns a non-empty string, and falls back to directVal otherwise.
-         * This guarantees data always shows — even while translation is loading
-         * or when the translation cache was cleared after vessel data arrived.
-         */}
+        {/* SECTION 2 — Vessel Tracking */}
         <div
           className="lg:col-span-2 rounded-2xl overflow-hidden shadow-sm"
           style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0d2137 100%)" }}
@@ -573,9 +582,10 @@ export default function IllegalCaseDetails() {
 
             <div className="flex-1 flex flex-col items-center justify-center">
               {vessel ? (
+                // Valid vessel data — show all rows
                 <div className="w-full space-y-3">
                   {vesselRows.map((item) => {
-                    // Prefer translated value; fall back to raw vessel data
+                    // Prefer translated value via t(); fall back to directVal if empty
                     const displayValue = t(item.valueKey) || item.directVal;
                     return (
                       <div key={item.labelKey} className="flex items-center justify-between bg-white/10 rounded-xl px-4 py-2.5 border border-white/10">
@@ -587,7 +597,23 @@ export default function IllegalCaseDetails() {
                     );
                   })}
                 </div>
+              ) : caseData.trackButtonUsed ? (
+                // trackButtonUsed = true but vessel data is null/corrupted
+                // This covers old records where Beeceptor saved a bad string to DB.
+                // Show a clear message instead of an empty/broken state.
+                <div className="flex flex-col items-center gap-3 text-center px-2">
+                  <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-400/30 flex items-center justify-center">
+                    <Radar className="w-8 h-8 text-amber-300/70" />
+                  </div>
+                  <p className="text-amber-300 text-xs font-bold">
+                    Vessel data could not be retrieved at the time of tracking.
+                  </p>
+                  <p className="text-slate-400 text-[11px]">
+                    The tracking action has been recorded. Please contact your administrator if this data is required.
+                  </p>
+                </div>
               ) : (
+                // Not yet tracked
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm flex items-center justify-center">
                     <Radar className="w-8 h-8 text-white/60" />
