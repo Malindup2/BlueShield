@@ -61,11 +61,18 @@ const reportSchema = new mongoose.Schema(
 
     attachments: [
       {
-        url: String,
-        type: String,
+        url: { type: String },
+        type: { type: String },
         uploadedAt: { type: Date, default: Date.now },
       },
     ],
+
+    vessel: {
+      name: { type: String, trim: true },
+      mmsi: { type: String, trim: true },
+      latitude: { type: Number },
+      longitude: { type: Number },
+    },
 
     isAnonymous: {
       type: Boolean,

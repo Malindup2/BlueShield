@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { MapPin, AlertCircle, FileUp, Shield } from "lucide-react";
+import { MapPin, AlertCircle, FileUp, Shield, Ship } from "lucide-react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import axios from "axios";
@@ -20,6 +20,10 @@ export default function SubmitAReport() {
     reportType: "ILLEGAL_FISHING",
     severity: "MEDIUM",
     isAnonymous: false,
+    vesselName: "",
+    vesselMmsi: "",
+    vesselLatitude: "",
+    vesselLongitude: "",
   });
 
   // Client-side validation
@@ -33,8 +37,13 @@ export default function SubmitAReport() {
   }, []);
 
   const handleVesselSelect = useCallback((vesselData) => {
-    // Vessel selection not used for reports, but keeping for future use
-    console.log("Vessel selected:", vesselData);
+    setForm((prev) => ({
+      ...prev,
+      vesselName: vesselData.name || "",
+      vesselMmsi: vesselData.mmsi || "",
+      vesselLatitude: vesselData.latitude || "",
+      vesselLongitude: vesselData.longitude || "",
+    }));
   }, []);
 
   const REPORT_TYPES = [
@@ -103,6 +112,17 @@ export default function SubmitAReport() {
       formData.append("reportType", form.reportType);
       formData.append("severity", form.severity);
       formData.append("isAnonymous", form.isAnonymous);
+
+      // Append vessel info if provided
+      if (form.vesselName || form.vesselMmsi) {
+        formData.append("vessel", JSON.stringify({
+          name: form.vesselName,
+          mmsi: form.vesselMmsi,
+          latitude: form.vesselLatitude ? parseFloat(form.vesselLatitude) : undefined,
+          longitude: form.vesselLongitude ? parseFloat(form.vesselLongitude) : undefined,
+        }));
+      }
+
       formData.append("location", JSON.stringify({
         type: "Point",
         coordinates: [location.lng, location.lat],
@@ -129,12 +149,17 @@ export default function SubmitAReport() {
         reportType: "ILLEGAL_FISHING",
         severity: "MEDIUM",
         isAnonymous: false,
+        vesselName: "",
+        vesselMmsi: "",
+        vesselLatitude: "",
+        vesselLongitude: "",
       });
       setLocation(null);
       setAttachments([]);
-      navigate("/");
+      navigate("/dashboard/my-reports");
     } catch (error) {
       console.error("Report submission error:", error);
+      console.error("Response data:", error.response?.data);
       const message =
         error.response?.data?.message || "Error submitting report. Please try again.";
       toast.error(message);
@@ -257,6 +282,74 @@ export default function SubmitAReport() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Vessel Information */}
+              <div className="space-y-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <Ship className="h-5 w-5 text-emerald-600" />
+                  <span className="text-sm font-semibold text-slate-700">Vessel Information</span>
+                  <span className="text-xs text-slate-400">(click a vessel on the map or enter manually)</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-xs font-medium text-slate-600" htmlFor="vesselName">Vessel Name</label>
+                    <input
+                      id="vesselName"
+                      name="vesselName"
+                      type="text"
+                      value={form.vesselName}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-sm"
+                      placeholder="e.g. MV BlueSky"
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="text-xs font-medium text-slate-600" htmlFor="vesselMmsi">MMSI</label>
+                    <input
+                      id="vesselMmsi"
+                      name="vesselMmsi"
+                      type="text"
+                      value={form.vesselMmsi}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-sm"
+                      placeholder="e.g. 111111111"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600" htmlFor="vesselLatitude">Latitude</label>
+                    <input
+                      id="vesselLatitude"
+                      name="vesselLatitude"
+                      type="number"
+                      step="any"
+                      value={form.vesselLatitude}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-sm"
+                      placeholder="e.g. 6.9271"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600" htmlFor="vesselLongitude">Longitude</label>
+                    <input
+                      id="vesselLongitude"
+                      name="vesselLongitude"
+                      type="number"
+                      step="any"
+                      value={form.vesselLongitude}
+                      onChange={handleChange}
+                      className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-sm"
+                      placeholder="e.g. 79.8612"
+                    />
+                  </div>
+                </div>
+
+                {form.vesselName && (
+                  <p className="text-xs text-emerald-700">
+                    Selected: {form.vesselName} {form.vesselMmsi ? `(MMSI: ${form.vesselMmsi})` : ''}
+                  </p>
+                )}
               </div>
 
               {/* Map on mobile/tablet */}

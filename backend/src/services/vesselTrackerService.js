@@ -1,7 +1,6 @@
-// upon filing a report of a vessel, the third party vessel tracker API is called to get the current location of the vessel and store it in the database. This service is responsible for calling the third party API and storing the location data in the database.
-
 const axios = require("axios");
 const Report = require("../models/Report");
+const vesselDatabase = require("../data/vesselDatabase.json");
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (deg) => (deg * Math.PI) / 180;
@@ -16,18 +15,49 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
     return R * c;
 };
 
-const VESSEL_TRACKER_API_URL = "https://api.vesseltracker.com/v1/vessels";
-const VESSEL_TRACKER_API_KEY = process.env.VESSEL_TRACKER_API_KEY;
-const VESSEL_FINDER_API_URL = "https://api.vesselfinder.com/vessels";
-const VESSEL_FINDER_API_KEY = process.env.VESSEL_FINDER_API_KEY;
+// DataDocked (VesselFinder) API Configuration
+const DATADOCKED_API_KEY = process.env.DATADOCKED_API_KEY;
+const DATADOCKED_BASE_URL = "https://datadocked.com/api/vessels_operations";
 
-// MyShipTracking API Configuration
+// Legacy MyShipTracking API Configuration (fallback)
 const MYSHIPTRACKING_API_KEY = process.env.MYSHIPTRACKING_API_KEY;
 const MYSHIPTRACKING_BASE_URL = process.env.MYSHIPTRACKING_BASE_URL || "https://api.myshiptracking.com";
 
-console.log('Environment variables loaded:');
-console.log('MYSHIPTRACKING_API_KEY exists:', !!MYSHIPTRACKING_API_KEY);
-console.log('MYSHIPTRACKING_BASE_URL:', MYSHIPTRACKING_BASE_URL);
+// Beeceptor Mock API Configuration (fallback before local data)
+const BEECEPTOR_VESSEL_API_URL = process.env.BEECEPTOR_VESSEL_API_URL;
+
+console.log('Vessel Tracker - API keys loaded:');
+console.log('  DATADOCKED_API_KEY exists:', !!DATADOCKED_API_KEY);
+console.log('  MYSHIPTRACKING_API_KEY exists:', !!MYSHIPTRACKING_API_KEY);
+console.log('  BEECEPTOR_VESSEL_API_URL exists:', !!BEECEPTOR_VESSEL_API_URL);
+
+/**
+ * Standardize vessel data from different API sources into a consistent format
+ */
+const standardize = (vesselList, source = 'unknown') => {
+    return vesselList
+        .map(vessel => {
+            // DataDocked returns speed in tenths of knots (e.g. "110" = 11.0 knots)
+            let speed = parseFloat(vessel.speed || vessel.SPEED || 0);
+            if (source === 'datadocked' && speed > 50) {
+                speed = speed / 10;
+            }
+
+            return {
+                MMSI: String(vessel.mmsi || vessel.MMSI || vessel.mmsi_number || 'Unknown'),
+                NAME: vessel.name || vessel.NAME || vessel.ship_name || vessel.vessel_name || 'Unknown Vessel',
+                LAT: parseFloat(vessel.latitude || vessel.lat || vessel.LAT || 0),
+                LON: parseFloat(vessel.longitude || vessel.lon || vessel.LON || vessel.lng || 0),
+                TYPE: vessel.type || vessel.TYPE || vessel.ship_type || vessel.vessel_type || 'Unknown',
+                SPEED: speed,
+                COURSE: parseFloat(vessel.course || vessel.COURSE || vessel.heading || 0),
+                HEADING: parseFloat(vessel.heading || vessel.HEADING || 0),
+                STATUS: vessel.status || vessel.STATUS || vessel.nav_status || 'Unknown',
+                DISTANCE_KM: null
+            };
+        })
+        .filter(v => !isNaN(v.LAT) && !isNaN(v.LON) && v.LAT !== 0 && v.LON !== 0);
+};
 
 /**
  * Track a specific vessel by name and store its location
@@ -37,86 +67,147 @@ console.log('MYSHIPTRACKING_BASE_URL:', MYSHIPTRACKING_BASE_URL);
  */
 exports.trackVessel = async (reportId, vesselName) => {
     try {
-        const response = await axios.get(`${VESSEL_TRACKER_API_URL}?name=${encodeURIComponent(vesselName)}`, {
-            headers: {
-                "Authorization": `Bearer ${VESSEL_TRACKER_API_KEY}`
-            }
-        });
-        const vesselData = response.data;
+        // Use DataDocked search if available
+        if (DATADOCKED_API_KEY) {
+            const response = await axios.get(`${DATADOCKED_BASE_URL}/search-vessel`, {
+                params: { name: vesselName },
+                headers: {
+                    'accept': 'application/json',
+                    'x-api-key': DATADOCKED_API_KEY
+                },
+                timeout: 10000
+            });
 
-        // Update the report with the vessel's current location
-        await Report.findByIdAndUpdate(reportId, {
-            $set: {
-                vesselLocation: vesselData.location
+            const vesselData = response.data;
+            if (vesselData && vesselData.latitude && vesselData.longitude) {
+                await Report.findByIdAndUpdate(reportId, {
+                    $set: {
+                        vesselLocation: {
+                            type: "Point",
+                            coordinates: [parseFloat(vesselData.longitude), parseFloat(vesselData.latitude)]
+                        }
+                    }
+                });
             }
-        });
+            return vesselData;
+        }
 
-        return vesselData;
+        throw new Error("No vessel tracking API configured");
     } catch (error) {
-        console.error("Error tracking vessel:", error);
+        console.error("Error tracking vessel:", error.message);
         throw new Error("Failed to track vessel");
     }
 };
 
 /**
- * Fetch vessels within a geographic zone
+ * Fetch vessels within a geographic zone using DataDocked API
+ * Converts bounding box to center point + radius for the API
+ *
  * @param {number} minlat - Minimum latitude
  * @param {number} maxlat - Maximum latitude
  * @param {number} minlon - Minimum longitude
  * @param {number} maxlon - Maximum longitude
- * @param {number} minutesBack - Maximum age of position in minutes (default: 60)
- * @returns {Array} Array of vessels in the zone
+ * @param {number} minutesBack - Not used by DataDocked but kept for interface compatibility
+ * @returns {Array} Array of standardized vessel objects
  */
 exports.getVesselsInZone = async (minlat, maxlat, minlon, maxlon, minutesBack = 60) => {
     try {
-        console.log('getVesselsInZone called with:', { minlat, maxlat, minlon, maxlon, minutesBack });
-
         if (minlat === undefined || maxlat === undefined || minlon === undefined || maxlon === undefined) {
             throw new Error("All bounding box coordinates (minlat, maxlat, minlon, maxlon) are required");
         }
 
-        const standardize = (vesselList) => {
-            return vesselList
-                .map(vessel => ({
-                    MMSI: vessel.mmsi || vessel.MMSI || vessel.mmsi_number || 'Unknown',
-                    NAME: vessel.name || vessel.NAME || vessel.ship_name || vessel.vessel_name || 'Unknown Vessel',
-                    LAT: parseFloat(vessel.lat || vessel.latitude || vessel.LAT || 0),
-                    LON: parseFloat(vessel.lon || vessel.longitude || vessel.LON || vessel.lng || 0),
-                    TYPE: vessel.type || vessel.TYPE || vessel.ship_type || vessel.vessel_type || 'Unknown',
-                    SPEED: parseFloat(vessel.speed || vessel.SPEED || 0),
-                    COURSE: parseFloat(vessel.course || vessel.COURSE || vessel.heading || 0),
-                    STATUS: vessel.status || vessel.STATUS || vessel.nav_status || 'Unknown',
-                    DISTANCE_KM: null // Not applicable for zone queries
-                }))
-                .filter(v => !isNaN(v.LAT) && !isNaN(v.LON) && v.LAT !== 0 && v.LON !== 0);
+        // Convert bounding box to center point + radius for DataDocked API
+        const centerLat = (minlat + maxlat) / 2;
+        const centerLon = (minlon + maxlon) / 2;
+        // Calculate radius from center to corner of bounding box, capped at 50km (API max)
+        const radius = Math.min(
+            haversineDistance(centerLat, centerLon, maxlat, maxlon),
+            50
+        );
+
+        // Build local fallback from vessel database — scatter vessels across the zone
+        const buildLocalFallback = () => {
+            const centerLat = (minlat + maxlat) / 2;
+            const centerLon = (minlon + maxlon) / 2;
+            const latSpread = (maxlat - minlat) * 0.3;
+            const lonSpread = (maxlon - minlon) * 0.3;
+
+            return vesselDatabase.map((v, i) => {
+                const angle = (2 * Math.PI * i) / vesselDatabase.length;
+                return {
+                    MMSI: v.mmsi,
+                    NAME: v.name,
+                    LAT: centerLat + latSpread * Math.sin(angle),
+                    LON: centerLon + lonSpread * Math.cos(angle),
+                    TYPE: v.type,
+                    SPEED: v.speed,
+                    COURSE: v.course,
+                    STATUS: v.status,
+                    DISTANCE_KM: null
+                };
+            });
         };
 
-        const fallbackVessels = [
-            { MMSI: "111111111", NAME: "MV BlueSky", LAT: (minlat + maxlat) / 2 + 0.01, LON: (minlon + maxlon) / 2 + 0.01, TYPE: "Cargo", SPEED: 12, COURSE: 120, STATUS: "MOVING", DISTANCE_KM: null },
-            { MMSI: "222222222", NAME: "MV OceanStar", LAT: (minlat + maxlat) / 2 - 0.015, LON: (minlon + maxlon) / 2 - 0.02, TYPE: "Tanker", SPEED: 8, COURSE: 45, STATUS: "MOVING", DISTANCE_KM: null },
-        ];
+        // --- Primary: DataDocked (VesselFinder) API ---
+        if (DATADOCKED_API_KEY) {
+            try {
+                console.log('Attempting DataDocked API with:', {
+                    latitude: centerLat.toFixed(1),
+                    longitude: centerLon.toFixed(1),
+                    circle_radius: Math.ceil(radius)
+                });
 
+                const response = await axios.get(`${DATADOCKED_BASE_URL}/get-vessels-by-area`, {
+                    params: {
+                        latitude: parseFloat(centerLat.toFixed(1)),
+                        longitude: parseFloat(centerLon.toFixed(1)),
+                        circle_radius: Math.max(1, Math.ceil(radius))
+                    },
+                    headers: {
+                        'accept': 'application/json',
+                        'x-api-key': DATADOCKED_API_KEY
+                    },
+                    timeout: 15000
+                });
+
+                console.log('DataDocked API response status:', response.status);
+
+                let vessels = [];
+                if (Array.isArray(response.data)) {
+                    vessels = response.data;
+                } else if (response.data && Array.isArray(response.data.data)) {
+                    vessels = response.data.data;
+                }
+
+                console.log(`DataDocked returned ${vessels.length} raw vessels`);
+
+                const standardized = standardize(vessels, 'datadocked');
+                if (standardized.length > 0) {
+                    console.log(`DataDocked: ${standardized.length} live vessels returned`);
+                    return standardized;
+                }
+
+                console.log('DataDocked returned no usable vessels, trying fallback...');
+            } catch (ddError) {
+                if (ddError.response?.status === 429) {
+                    console.error('⚠️  DataDocked RATE LIMIT EXCEEDED — max 50 requests/minute. Falling back to alternative API.');
+                } else {
+                    console.error('DataDocked API error:', ddError.message);
+                    if (ddError.response) {
+                        console.error('  Status:', ddError.response.status);
+                        console.error('  Data:', JSON.stringify(ddError.response.data).substring(0, 300));
+                    }
+                }
+            }
+        }
+
+        // --- Fallback: MyShipTracking API ---
         if (MYSHIPTRACKING_API_KEY) {
             try {
-                console.log('✓ MyShipTracking API key exists, attempting zone query...');
-                console.log('Using MyShipTracking API v2 vessel zone');
+                console.log('Falling back to MyShipTracking API...');
 
-                const apiUrl = `${MYSHIPTRACKING_BASE_URL}/api/v2/vessel/zone`;
-                const params = {
-                    minlat,
-                    maxlat,
-                    minlon,
-                    maxlon,
-                    minutesBack,
-                    response: 'simple'
-                };
-
-                console.log('📍 API URL:', apiUrl);
-                console.log('📍 Params:', params);
-                console.log('📍 Auth Header: Bearer ' + MYSHIPTRACKING_API_KEY.substring(0, 10) + '...');
-
-                const response = await axios.get(apiUrl, {
-                    params,
+                const response = await axios.get(`${MYSHIPTRACKING_BASE_URL}/api/v2/vessel/zone`, {
+                    params: { minlat, maxlat, minlon, maxlon, minutesBack, response: 'simple' },
                     headers: {
                         'Authorization': `Bearer ${MYSHIPTRACKING_API_KEY}`,
                         'Accept': 'application/json'
@@ -124,54 +215,86 @@ exports.getVesselsInZone = async (minlat, maxlat, minlon, maxlon, minutesBack = 
                     timeout: 10000
                 });
 
-                console.log('✓ MyShipTracking API v2 zone status:', response.status);
-                console.log('✓ Response structure:', {
-                    hasData: !!response.data,
-                    dataKeys: response.data ? Object.keys(response.data) : [],
-                    dataType: typeof response.data
-                });
-
-                // MyShipTracking v2 returns: { status: "success", duration: "...", timestamp: "...", data: [...] }
                 let vessels = [];
                 if (response.data && response.data.data && Array.isArray(response.data.data)) {
                     vessels = response.data.data;
-                    console.log('✓ Extracted vessels from response.data.data');
                 } else if (Array.isArray(response.data)) {
                     vessels = response.data;
-                    console.log('✓ Response is array, using directly');
-                } else {
-                    console.warn('⚠ Unexpected response structure:', JSON.stringify(response.data).substring(0, 200));
                 }
 
-                console.log(`✓ Parsed ${vessels.length} vessels from MyShipTracking v2 zone`);
-
-                const standardized = standardize(vessels);
+                const standardized = standardize(vessels, 'myshiptracking');
                 if (standardized.length > 0) {
-                    console.log(`✓✓✓ MyShipTracking v2 zone returned ${standardized.length} LIVE vessels`);
+                    console.log(`MyShipTracking fallback: ${standardized.length} live vessels`);
                     return standardized;
                 }
-
-                console.log('⚠ MyShipTracking v2 zone returned no usable vessels after standardize, using fallback');
-            } catch (myshipError) {
-                console.error('✗✗✗ MyShipTracking v2 zone API error:');
-                console.error('  Message:', myshipError.message);
-                console.error('  Status:', myshipError.response?.status);
-                console.error('  Status Text:', myshipError.response?.statusText);
-                console.error('  Error code:', myshipError.response?.data?.code);
-                console.error('  Error message:', myshipError.response?.data?.message);
-                console.error('  Full response:', JSON.stringify(myshipError.response?.data).substring(0, 500));
+            } catch (mstError) {
+                console.error('MyShipTracking fallback error:', mstError.message);
             }
-        } else {
-            console.warn('⚠ MYSHIPTRACKING_API_KEY not set, using fallback');
         }
 
-        console.warn('No external API produced vessels, using fallback mock vessels');
-        return fallbackVessels;
+        // --- Tertiary: Beeceptor Mock API ---
+        if (BEECEPTOR_VESSEL_API_URL) {
+            try {
+                console.log('Falling back to Beeceptor mock API...');
+
+                const response = await axios.get(BEECEPTOR_VESSEL_API_URL, {
+                    timeout: 8000
+                });
+
+                let vessels = [];
+                if (Array.isArray(response.data)) {
+                    vessels = response.data;
+                } else if (response.data && Array.isArray(response.data.data)) {
+                    vessels = response.data.data;
+                }
+
+                const standardized = standardize(vessels, 'beeceptor');
+
+                // Expand the bounding box for Beeceptor since vessels are spread globally
+                // Original frontend delta is 0.15° (~16km) — expand to ~5° (~550km) to find mock vessels
+                const expandBy = 5;
+                const beeMinLat = minlat - expandBy;
+                const beeMaxLat = maxlat + expandBy;
+                const beeMinLon = minlon - expandBy;
+                const beeMaxLon = maxlon + expandBy;
+
+                const inZone = standardized.filter(v =>
+                    v.LAT >= beeMinLat && v.LAT <= beeMaxLat &&
+                    v.LON >= beeMinLon && v.LON <= beeMaxLon
+                );
+                if (inZone.length > 0) {
+                    console.log(`Beeceptor fallback: ${inZone.length} vessels in expanded zone (from ${standardized.length} total)`);
+                    return inZone;
+                }
+                console.log(`Beeceptor: ${standardized.length} vessels fetched but none in expanded bounding box`);
+            } catch (beeError) {
+                console.error('Beeceptor fallback error:', beeError.message);
+            }
+        }
+
+        // --- Final fallback: local vessel database ---
+        console.warn('No external API produced vessels, returning local vessel database');
+        return buildLocalFallback();
     } catch (error) {
-        console.error("getVesselsInZone general failure:", error);
-        return [
-            { MMSI: "111111111", NAME: "MV BlueSky", LAT: (minlat + maxlat) / 2 + 0.01, LON: (minlon + maxlon) / 2 + 0.01, TYPE: "Cargo", SPEED: 12, COURSE: 120, STATUS: "MOVING", DISTANCE_KM: null },
-            { MMSI: "222222222", NAME: "MV OceanStar", LAT: (minlat + maxlat) / 2 - 0.015, LON: (minlon + maxlon) / 2 - 0.02, TYPE: "Tanker", SPEED: 8, COURSE: 45, STATUS: "MOVING", DISTANCE_KM: null },
-        ];
+        console.error("getVesselsInZone general failure:", error.message);
+        const centerLat = (minlat + maxlat) / 2;
+        const centerLon = (minlon + maxlon) / 2;
+        const latSpread = (maxlat - minlat) * 0.3;
+        const lonSpread = (maxlon - minlon) * 0.3;
+
+        return vesselDatabase.map((v, i) => {
+            const angle = (2 * Math.PI * i) / vesselDatabase.length;
+            return {
+                MMSI: v.mmsi,
+                NAME: v.name,
+                LAT: centerLat + latSpread * Math.sin(angle),
+                LON: centerLon + lonSpread * Math.cos(angle),
+                TYPE: v.type,
+                SPEED: v.speed,
+                COURSE: v.course,
+                STATUS: v.status,
+                DISTANCE_KM: null
+            };
+        });
     }
 };
