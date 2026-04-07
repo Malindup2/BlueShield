@@ -6,6 +6,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import CreateReport from "./pages/SubmitAReport";
+import MyReports from "./pages/MyReports";
 
 import DashboardLayout from "./components/layout/DashboardLayout";
 import ProtectedRoute from "./components/common/ProtectedRoute";
@@ -51,6 +52,15 @@ export default function App() {
 
             {/* COMMON */}
             <Route path="report" element={<ProtectedRoute allowedRoles={["FISHERMAN","OFFICER","SYSTEM_ADMIN"]}><CreateReport /></ProtectedRoute>} />
+
+            <Route
+              path="my-reports"
+              element={
+                <ProtectedRoute allowedRoles={["FISHERMAN", "OFFICER", "SYSTEM_ADMIN"]}>
+                  <MyReports />
+                </ProtectedRoute>
+              }
+            />
 
             {/* FISHERMAN */}
             <Route path="fisherman" element={<ProtectedRoute allowedRoles={["FISHERMAN"]}><FishermanHome /></ProtectedRoute>} />
