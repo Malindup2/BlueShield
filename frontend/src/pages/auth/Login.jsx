@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
-import axios from "axios";
 import toast from "react-hot-toast";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -19,14 +20,8 @@ export default function Login() {
     setLoading(true);
     
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/login", formData);
-      const data = response.data;
+      const data = await login(formData.email, formData.password);
       
-      // Save token & user to local storage
-      localStorage.setItem("user", JSON.stringify(data));
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("userRole", data.role); // Crucial for Sidebar and ProtectedRoute
-
       toast.success(`Welcome back, ${data.name}!`);
       
       // Role-based redirection mapping

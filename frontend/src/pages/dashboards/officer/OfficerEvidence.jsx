@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, FileSearch, Filter, Lock, Paperclip, Search, ShieldCheck, Upload, X, AlertTriangle, ExternalLink, FileStack, Activity, Sparkles } from "lucide-react";
+import { ChevronDown, FileSearch, Filter, Lock, Paperclip, Search, ShieldCheck, Upload, X, ExternalLink, FileStack, Activity, Sparkles, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { Skeleton } from "../../../components/common/Skeleton";
@@ -74,8 +74,12 @@ export default function OfficerEvidence() {
   useEffect(() => {
     getEnforcements({ limit: 50 })
       .then(res => {
-        setEnforcements(res.items || []);
-        if (res.items?.length > 0) setSelectedEnforcement(res.items[0]._id);
+        const cases = res.items || [];
+        setEnforcements(cases);
+        // Automatically select the first case so the page isn't empty
+        if (cases.length > 0) {
+          setSelectedEnforcement(cases[0]._id);
+        }
       })
       .catch(err => console.error(err));
   }, []);
@@ -121,11 +125,19 @@ export default function OfficerEvidence() {
     setEvidenceForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleOpenEvidenceModal = () => {
+    if (!selectedEnforcement) {
+      toast.error("Please select a case first");
+      return;
+    }
+    setShowEvidenceModal(true);
+  };
+
   const handleEvidenceSubmit = async (event) => {
     event.preventDefault();
 
     if (!selectedEnforcement) {
-      toast.error("Select an enforcement case first");
+      toast.error("Please select an enforcement case first");
       return;
     }
     if (!evidenceForm.description.trim()) {
@@ -334,6 +346,13 @@ export default function OfficerEvidence() {
     setShowCasePicker(false);
   };
 
+  const handleClearSelection = () => {
+    setSelectedEnforcement("");
+    setCaseSearchTerm("");
+    setShowCasePicker(false);
+    setEvidenceItems([]); // Clear current list
+  };
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 p-6 shadow-xl space-y-5">
@@ -350,7 +369,7 @@ export default function OfficerEvidence() {
           </div>
 
           <button
-            onClick={() => setShowEvidenceModal(true)}
+            onClick={handleOpenEvidenceModal}
             className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition flex-shrink-0 shadow-sm"
           >
             <Upload className="w-4 h-4" />
@@ -360,7 +379,53 @@ export default function OfficerEvidence() {
 
         <div className="relative z-10 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm space-y-4">
           <div className="flex items-center gap-3 w-full lg:w-auto">
-            <div className="w-full lg:w-[28rem]">
+          <div className="w-full lg:w-[32rem]">
+            {selectedCase && !showCasePicker ? (
+              // Enhanced "Active Case" Card
+              <div className="flex items-center justify-between rounded-2xl border border-blue-400/30 bg-blue-500/10 p-3.5 backdrop-blur-md shadow-inner">
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase text-blue-300/70 tracking-[0.2em] mb-1">Active Case</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg font-black text-white font-mono tracking-wider">
+                        {getCaseDisplayLabel(selectedCase)}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${
+                          selectedCase.status === "CLOSED_RESOLVED" ? "border-emerald-500 bg-emerald-500/20 text-emerald-300" :
+                          "border-amber-500 bg-amber-500/20 text-amber-300"
+                        }`}>
+                          {selectedCase.status?.replace("_", " ")}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${
+                          selectedCase.priority === "CRITICAL" ? "border-rose-500 bg-rose-500/20 text-rose-300 animate-pulse" :
+                          "border-blue-500 bg-blue-500/20 text-blue-300"
+                        }`}>
+                          {selectedCase.priority}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowCasePicker(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white text-[11px] font-black uppercase tracking-wider hover:bg-white/20 transition border border-white/10"
+                    title="Switch Case"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Switch
+                  </button>
+                  <button
+                    onClick={handleClearSelection}
+                    className="p-1.5 rounded-lg bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 transition border border-rose-500/20"
+                    title="Clear Selection"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Search Input Mode
               <div ref={casePickerRef} className="relative">
                 <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
@@ -370,20 +435,19 @@ export default function OfficerEvidence() {
                     setShowCasePicker(true);
                   }}
                   onFocus={() => setShowCasePicker(true)}
-                  placeholder={selectedCase ? `Selected ${getCaseDisplayLabel(selectedCase)} - search by ID, status, priority` : "Search case by ID, status, priority"}
-                  className="w-full rounded-xl border border-white/20 bg-white/90 pl-10 pr-10 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Select a case by ID, status, or priority..."
+                  className="w-full rounded-xl border border-white/20 bg-white/90 pl-10 pr-10 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCasePicker((prev) => !prev)}
                   className="absolute right-2 top-2 p-1.5 text-slate-400 hover:text-slate-600"
-                  aria-label="Toggle case picker"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </button>
 
                 {showCasePicker && (
-                  <div className="absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-72 overflow-y-auto">
+                  <div className="absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-2xl max-h-72 overflow-y-auto">
                     {filteredCases.length === 0 ? (
                       <div className="px-4 py-3 text-sm text-slate-500">No matching cases found.</div>
                     ) : (
@@ -393,13 +457,20 @@ export default function OfficerEvidence() {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleCaseSelect(enf._id)}
-                          className={`w-full text-left px-4 py-3 border-b last:border-b-0 border-slate-100 hover:bg-slate-50 ${
-                            selectedEnforcement === enf._id ? "bg-blue-50" : ""
+                          className={`w-full text-left px-4 py-3 border-b last:border-b-0 border-slate-100 hover:bg-blue-50 transition ${
+                            selectedEnforcement === enf._id ? "bg-blue-50/50" : ""
                           }`}
                         >
-                          <div className="text-sm font-bold text-slate-800">{getCaseDisplayLabel(enf)}</div>
-                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                            {enf.status || "Unknown status"} {enf.priority ? `- ${enf.priority}` : ""}
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold text-slate-800">{getCaseDisplayLabel(enf)}</span>
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${
+                              enf.status === "CLOSED_RESOLVED" ? "border-emerald-200 text-emerald-600" : "border-amber-200 text-amber-600"
+                            }`}>
+                              {enf.status?.replace("_", " ")}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-[11px] font-semibold text-slate-500">
+                             Priority: <span className={enf.priority === "CRITICAL" ? "text-red-500" : "text-slate-700"}>{enf.priority}</span>
                           </div>
                         </button>
                       ))
@@ -407,11 +478,12 @@ export default function OfficerEvidence() {
                   </div>
                 )}
               </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-100 font-semibold uppercase tracking-wider">
-                <span>{selectedCase ? `Selected ${selectedCase._id.slice(-6).toUpperCase()}` : "No case selected"}</span>
-                <span>{enforcements.length} cases</span>
-              </div>
+            )}
+            <div className="mt-2 flex items-center justify-between text-[11px] text-blue-200/60 font-semibold uppercase tracking-wider">
+              <span>{selectedCase ? "Active Investigation" : "Select Case to Load Evidence"}</span>
+              <span>{enforcements.length} Cases Available</span>
             </div>
+          </div>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

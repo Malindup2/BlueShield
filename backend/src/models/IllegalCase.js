@@ -104,9 +104,25 @@ const illegalCaseSchema = new mongoose.Schema(
 
 // Auto-generate case number before save
 illegalCaseSchema.pre("save", async function () {
-  if (!this.isNew) return;
-  const count = await mongoose.model("IllegalCase").countDocuments();
-  this.caseNumber = `IC-${Date.now()}-${String(count + 1).padStart(5, "0")}`;
+  if (!this.isNew || this.caseNumber) return;
+  
+  // Use a combination of timestamp and a robust sequential increment
+  const timestamp = Date.now();
+  const lastCase = await mongoose.model("IllegalCase")
+    .findOne()
+    .sort("-createdAt")
+    .exec();
+
+  let nextNum = 1;
+  if (lastCase && lastCase.caseNumber) {
+    const parts = lastCase.caseNumber.split("-");
+    const lastSeq = parseInt(parts[parts.length - 1], 10);
+    if (!isNaN(lastSeq)) {
+      nextNum = lastSeq + 1;
+    }
+  }
+
+  this.caseNumber = `IC-${timestamp}-${String(nextNum).padStart(5, "0")}`;
 });
 
 illegalCaseSchema.index({ status: 1, severity: 1 });

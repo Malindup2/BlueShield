@@ -92,8 +92,15 @@ const teamMemberSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Prevent duplicate assignment to same enforcement
-teamMemberSchema.index({ enforcement: 1, officer: 1 }, { unique: true, partialFilterExpression: { officer: { $type: "objectId" } } });
+// Prevent duplicate assignment of the SAME registered officer to the same enforcement
+// Allows multiple "Direct" members (where officer is null) to co-exist on the same case
+teamMemberSchema.index(
+  { enforcement: 1, officer: 1 }, 
+  { 
+    unique: true, 
+    partialFilterExpression: { officer: { $exists: true, $ne: null } } 
+  }
+);
 teamMemberSchema.index({ enforcement: 1, email: 1 }, { unique: true, partialFilterExpression: { email: { $type: "string" } } });
 
 // Indexes for efficient queries

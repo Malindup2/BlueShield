@@ -1,0 +1,690 @@
+openapi: 3.0.3
+info:
+  title: BlueShield Swagger API
+  version: 1.0.0
+  description: |
+    Swagger documentation for the BlueShield backend.
+    It documents the current routes, role requirements, and representative request/response examples.
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Reports
+  - name: Illegal Cases
+  - name: Enforcements
+  - name: Hazards
+  - name: Zones
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: Nimal Perera
+              email: nimal@example.com
+              password: Password123!
+              phone: "+94771234567"
+              role: FISHERMAN
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              example:
+                _id: 66f1a2c0b7c8a2d1a0010001
+                name: Nimal Perera
+                email: nimal@example.com
+                role: FISHERMAN
+                token: eyJhbGciOi...
+        '400':
+          description: Invalid user data or user already exists
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              email: officer@example.com
+              password: Password123!
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              example:
+                _id: 66f1a2c0b7c8a2d1a0010002
+                name: Officer One
+                email: officer@example.com
+                role: OFFICER
+                token: eyJhbGciOi...
+        '401':
+          description: Invalid email or password
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the current user profile
+      responses:
+        '200':
+          description: Authenticated user profile
+          content:
+            application/json:
+              example:
+                _id: 66f1a2c0b7c8a2d1a0010002
+                name: Officer One
+                email: officer@example.com
+                role: OFFICER
+        '401':
+          description: Not authorized
+
+  /api/reports:
+    get:
+      tags: [Reports]
+      summary: List reports
+      description: Accessible to FISHERMAN, OFFICER, SYSTEM_ADMIN, and ILLEGAL_ADMIN.
+      responses:
+        '200':
+          description: List of reports
+          content:
+            application/json:
+              example:
+                - _id: 66f1a2c0b7c8a2d1a0010101
+                  title: Suspicious boat near reef
+                  description: Observed a trawler in restricted waters
+                  reportType: ILLEGAL_FISHING
+                  severity: HIGH
+                  status: PENDING
+                  reportedBy:
+                    _id: 66f1a2c0b7c8a2d1a0010001
+                    name: Nimal Perera
+                    email: nimal@example.com
+    post:
+      tags: [Reports]
+      summary: Create a report
+      description: Accessible to FISHERMAN, OFFICER, and SYSTEM_ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              title: Suspicious boat near reef
+              description: Observed a trawler in restricted waters
+              reportType: ILLEGAL_FISHING
+              severity: HIGH
+              location:
+                type: Point
+                coordinates: [79.8612, 6.9271]
+              isAnonymous: false
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              example:
+                _id: 66f1a2c0b7c8a2d1a0010101
+                title: Suspicious boat near reef
+                description: Observed a trawler in restricted waters
+                reportType: ILLEGAL_FISHING
+                severity: HIGH
+                status: PENDING
+                reportedBy: 66f1a2c0b7c8a2d1a0010001
+        '400':
+          description: Validation error
+
+  /api/reports/{reportId}:
+    get:
+      tags: [Reports]
+      summary: Get a report by ID
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: 66f1a2c0b7c8a2d1a0010101
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              example:
+                _id: 66f1a2c0b7c8a2d1a0010101
+                title: Suspicious boat near reef
+                description: Observed a trawler in restricted waters
+                status: PENDING
+        '404':
+          description: Report not found
+    patch:
+      tags: [Reports]
+      summary: Update a report
+      description: Accessible to FISHERMAN, OFFICER, and SYSTEM_ADMIN.
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              status: VERIFIED
+              description: Confirmed by officer review
+      responses:
+        '200':
+          description: Updated report
+        '400':
+          description: Validation error
+    delete:
+      tags: [Reports]
+      summary: Delete a report
+      description: Accessible to authenticated users; actual ownership/admin checks are enforced in application logic.
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report deleted
+        '404':
+          description: Report not found
+
+  /api/illegal-cases/reports/pending:
+    get:
+      tags: [Illegal Cases]
+      summary: List pending reports for review
+      description: Accessible to ILLEGAL_ADMIN and SYSTEM_ADMIN.
+      responses:
+        '200':
+          description: Pending reports
+  /api/illegal-cases/reports/{reportId}/review:
+    post:
+      tags: [Illegal Cases]
+      summary: Create an illegal case from a report review
+      description: Accessible to ILLEGAL_ADMIN and SYSTEM_ADMIN.
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              title: Illegal trawling case
+              description: Review confirmed illegal fishing activity
+              vesselId: IMO-1234567
+              vesselType: Trawler
+              severity: HIGH
+      responses:
+        '201':
+          description: Illegal case created
+          content:
+            application/json:
+              example:
+                _id: 66f1a2c0b7c8a2d1a0010201
+                title: Illegal trawling case
+                severity: HIGH
+                status: OPEN
+        '400':
+          description: Validation error
+  /api/illegal-cases/officers:
+    get:
+      tags: [Illegal Cases]
+      summary: Get officers for escalation dropdowns
+      description: Accessible to ILLEGAL_ADMIN and SYSTEM_ADMIN.
+      responses:
+        '200':
+          description: List of officers
+  /api/illegal-cases:
+    get:
+      tags: [Illegal Cases]
+      summary: List illegal cases
+      description: Accessible to ILLEGAL_ADMIN and SYSTEM_ADMIN.
+      responses:
+        '200':
+          description: Illegal case list
+    post:
+      tags: [Illegal Cases]
+      summary: Not used in current routes
+      description: Included for completeness; create is handled via /reports/{reportId}/review.
+      responses:
+        '405':
+          description: Method not allowed in current implementation
+  /api/illegal-cases/{caseId}:
+    get:
+      tags: [Illegal Cases]
+      summary: Get illegal case by ID
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Illegal case details
+    patch:
+      tags: [Illegal Cases]
+      summary: Update illegal case
+      description: Accessible to ILLEGAL_ADMIN and SYSTEM_ADMIN.
+      responses:
+        '200':
+          description: Updated illegal case
+    delete:
+      tags: [Illegal Cases]
+      summary: Delete illegal case
+      description: Accessible to ILLEGAL_ADMIN and SYSTEM_ADMIN.
+      responses:
+        '200':
+          description: Deleted illegal case
+  /api/illegal-cases/{caseId}/escalate:
+    post:
+      tags: [Illegal Cases]
+      summary: Escalate an illegal case to an officer
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              officerId: 66f1a2c0b7c8a2d1a0010002
+      responses:
+        '200':
+          description: Case escalated
+  /api/illegal-cases/{caseId}/resolve:
+    post:
+      tags: [Illegal Cases]
+      summary: Resolve an illegal case
+      description: Accessible to OFFICER, SYSTEM_ADMIN, ILLEGAL_ADMIN.
+      responses:
+        '200':
+          description: Case resolved
+  /api/illegal-cases/{caseId}/track:
+    post:
+      tags: [Illegal Cases]
+      summary: Track the vessel for a case
+      description: Accessible to ILLEGAL_ADMIN and SYSTEM_ADMIN.
+      responses:
+        '200':
+          description: Vessel tracking data
+  /api/illegal-cases/{caseId}/notes:
+    post:
+      tags: [Illegal Cases]
+      summary: Add a note to an illegal case
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              content: Officers requested additional evidence from witness
+      responses:
+        '201':
+          description: Note added
+
+  /api/enforcements:
+    get:
+      tags: [Enforcements]
+      summary: List enforcements
+      description: Accessible to OFFICER, SYSTEM_ADMIN, and ILLEGAL_ADMIN.
+      responses:
+        '200':
+          description: Enforcement list
+          content:
+            application/json:
+              example:
+                page: 1
+                limit: 10
+                total: 1
+                items:
+                  - _id: 66f1a2c0b7c8a2d1a0010301
+                    status: OPEN
+                    priority: HIGH
+    post:
+      tags: [Enforcements]
+      summary: Create an enforcement record
+      description: Accessible to OFFICER and SYSTEM_ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              relatedCase: 66f1a2c0b7c8a2d1a0010201
+              priority: HIGH
+              notes: Officer workflow example
+              penaltyAmount: 2500
+      responses:
+        '201':
+          description: Enforcement created
+          content:
+            application/json:
+              example:
+                _id: 66f1a2c0b7c8a2d1a0010301
+                relatedCase: 66f1a2c0b7c8a2d1a0010201
+                priority: HIGH
+                status: OPEN
+        '400':
+          description: Validation error
+
+  /api/enforcements/{enforcementId}:
+    get:
+      tags: [Enforcements]
+      summary: Get enforcement by ID
+      responses:
+        '200':
+          description: Enforcement details
+    patch:
+      tags: [Enforcements]
+      summary: Update enforcement
+      description: Accessible to OFFICER and SYSTEM_ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              status: COURT_PENDING
+      responses:
+        '200':
+          description: Enforcement updated
+    delete:
+      tags: [Enforcements]
+      summary: Delete enforcement
+      description: Accessible to OFFICER and SYSTEM_ADMIN.
+      responses:
+        '200':
+          description: Enforcement deleted
+
+  /api/enforcements/from-case/{caseId}:
+    post:
+      tags: [Enforcements]
+      summary: Create enforcement from an illegal case
+      description: Officer workflow endpoint.
+      responses:
+        '201':
+          description: Enforcement created from case
+
+  /api/enforcements/{enforcementId}/actions:
+    post:
+      tags: [Enforcements]
+      summary: Add an enforcement action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              actionType: FINE_ISSUED
+              description: Fine issued on-site
+              amount: 2500
+      responses:
+        '200':
+          description: Action added
+  /api/enforcements/{enforcementId}/actions/{actionId}:
+    patch:
+      tags: [Enforcements]
+      summary: Update an enforcement action
+      responses:
+        '200':
+          description: Action updated
+    delete:
+      tags: [Enforcements]
+      summary: Delete an enforcement action
+      responses:
+        '200':
+          description: Action deleted
+
+  /api/enforcements/{enforcementId}/close:
+    patch:
+      tags: [Enforcements]
+      summary: Close an enforcement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              outcome: FINE_COLLECTED
+              penaltyAmount: 2500
+              notes: Enforcement closed by officer workflow
+      responses:
+        '200':
+          description: Enforcement closed
+
+  /api/enforcements/{enforcementId}/risk-score:
+    post:
+      tags: [Enforcements]
+      summary: Generate an AI risk score
+      description: Uses the Gemini integration.
+      responses:
+        '200':
+          description: Risk score stored
+
+  /api/enforcements/{enforcementId}/evidence:
+    get:
+      tags: [Enforcements]
+      summary: List enforcement evidence
+      responses:
+        '200':
+          description: Evidence list
+    post:
+      tags: [Enforcements]
+      summary: Add evidence to an enforcement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              evidenceType: PHOTOGRAPH
+              description: Boarding photo
+              isSealed: true
+              collectionMethod: On-site camera
+      responses:
+        '201':
+          description: Evidence created
+
+  /api/enforcements/{enforcementId}/evidence/{evidenceId}:
+    patch:
+      tags: [Enforcements]
+      summary: Update evidence
+      responses:
+        '200':
+          description: Evidence updated
+    delete:
+      tags: [Enforcements]
+      summary: Delete evidence
+      responses:
+        '200':
+          description: Evidence deleted
+
+  /api/enforcements/{enforcementId}/team:
+    get:
+      tags: [Enforcements]
+      summary: List assigned team members
+      responses:
+        '200':
+          description: Team list
+    post:
+      tags: [Enforcements]
+      summary: Assign an officer to the enforcement team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              officerId: 66f1a2c0b7c8a2d1a0010002
+              role: INVESTIGATOR
+              department: Marine Patrol
+      responses:
+        '201':
+          description: Team member created
+
+  /api/enforcements/{enforcementId}/team/{memberId}:
+    patch:
+      tags: [Enforcements]
+      summary: Update a team member
+      responses:
+        '200':
+          description: Team member updated
+    delete:
+      tags: [Enforcements]
+      summary: Remove a team member
+      responses:
+        '200':
+          description: Team member removed
+
+  /api/enforcements/stats/basic:
+    get:
+      tags: [Enforcements]
+      summary: Get basic enforcement statistics
+      responses:
+        '200':
+          description: Statistics payload
+  /api/enforcements/stats/by-date:
+    get:
+      tags: [Enforcements]
+      summary: Get enforcement statistics for a date range
+      responses:
+        '200':
+          description: Statistics payload
+  /api/enforcements/team/officers:
+    get:
+      tags: [Enforcements]
+      summary: Get assignable officers
+      responses:
+        '200':
+          description: Officer list
+
+  /api/hazards/from-report/{reportId}:
+    post:
+      tags: [Hazards]
+      summary: Create a hazard from an approved report
+      description: Accessible to HAZARD_ADMIN and SYSTEM_ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              hazardCategory: DEBRIS
+              severity: HIGH
+              zoneRequired: true
+      responses:
+        '201':
+          description: Hazard created
+  /api/hazards:
+    get:
+      tags: [Hazards]
+      summary: List hazards
+      description: Accessible to HAZARD_ADMIN and SYSTEM_ADMIN.
+      responses:
+        '200':
+          description: Hazards list
+  /api/hazards/{id}:
+    get:
+      tags: [Hazards]
+      summary: Get hazard by ID
+      responses:
+        '200':
+          description: Hazard details
+    patch:
+      tags: [Hazards]
+      summary: Update hazard
+      responses:
+        '200':
+          description: Hazard updated
+    delete:
+      tags: [Hazards]
+      summary: Delete hazard
+      responses:
+        '200':
+          description: Hazard deleted
+  /api/hazards/{id}/weather:
+    get:
+      tags: [Hazards]
+      summary: Get live marine weather for a hazard location
+      responses:
+        '200':
+          description: Weather payload
+  /api/hazards/{id}/resolve:
+    patch:
+      tags: [Hazards]
+      summary: Resolve a hazard and disable linked zones
+      requestBody:
+        required: false
+        content:
+          application/json:
+            example:
+              resolutionNote: Hazard cleared after inspection
+      responses:
+        '200':
+          description: Hazard resolved
+
+  /api/zones:
+    get:
+      tags: [Zones]
+      summary: List zones
+      description: Accessible to HAZARD_ADMIN, SYSTEM_ADMIN, FISHERMAN, and OFFICER.
+      responses:
+        '200':
+          description: Zone list
+    post:
+      tags: [Zones]
+      summary: Create a zone
+      description: Accessible to HAZARD_ADMIN and SYSTEM_ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              sourceHazard: 66f1a2c0b7c8a2d1a0010401
+              zoneType: RESTRICTED
+              warningMessage: Avoid this area
+              center: [79.8612, 6.9271]
+              radius: 1000
+      responses:
+        '201':
+          description: Zone created
+  /api/zones/{id}:
+    get:
+      tags: [Zones]
+      summary: Get zone by ID
+      responses:
+        '200':
+          description: Zone details
+    patch:
+      tags: [Zones]
+      summary: Update zone
+      responses:
+        '200':
+          description: Zone updated
+    delete:
+      tags: [Zones]
+      summary: Delete zone
+      responses:
+        '200':
+          description: Zone deleted
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

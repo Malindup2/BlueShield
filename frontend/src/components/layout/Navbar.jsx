@@ -2,9 +2,11 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogOut, User, AlertTriangle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Navbar() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
 
@@ -13,12 +15,9 @@ export default function Navbar() {
     return () => clearInterval(timer);
   }, []);
 
-  const currentRole = localStorage.getItem("userRole") || "USER";
+  const currentRole = user?.role || "USER";
   const formattedRole = currentRole.replace("_", " ");
-  
-  // Get user's actual name from stored user object
-  const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const userName = storedUser.name || "Agent";
+  const userName = user?.name || "Agent";
 
   const formatDate = (date) => {
     return date.toLocaleDateString('en-US', { 
@@ -37,9 +36,7 @@ export default function Navbar() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("user");
+    logout();
     navigate("/login");
   };
 
