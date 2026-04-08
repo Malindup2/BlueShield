@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Activity, ArrowRight, Bot, BrainCircuit, ChevronDown, FileWarning } from "lucide-react";
+import { Activity, ArrowRight, Bot, BrainCircuit, ChevronDown, FileWarning, Search, Shield } from "lucide-react";
 
 import { Skeleton } from "../../../components/common/Skeleton";
 import { getEnforcements, getEnforcementById, generateRiskScore } from "../../../services/enforcementAPI";
@@ -11,14 +11,36 @@ export default function OfficerAIRisk() {
   const [activeCase, setActiveCase] = useState(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCasePicker, setShowCasePicker] = useState(false);
+  const casePickerRef = useRef(null);
 
   useEffect(() => {
     getEnforcements({ limit: 20 })
       .then(res => {
-        setEnforcements(res.items || []);
-        if (res.items?.length > 0) setSelectedEnforcement(res.items[0]._id);
+        const items = res.items || [];
+        setEnforcements(items);
+        if (items.length > 0) {
+          setSelectedEnforcement(items[0]._id);
+          const defaultLabel = items[0].relatedCase?.title
+            ? `${items[0].relatedCase.title} (${items[0]._id.slice(-6).toUpperCase()})`
+            : `INVESTIGATION: ${items[0]._id.slice(-6).toUpperCase()}`;
+          setSearchQuery(defaultLabel);
+        }
       })
       .catch(err => console.error(err));
+  }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!casePickerRef.current) return;
+      if (!casePickerRef.current.contains(event.target)) {
+        setShowCasePicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
   useEffect(() => {
@@ -60,6 +82,28 @@ export default function OfficerAIRisk() {
   const riskHistory = activeCase?.riskScoreHistory || [];
   const currentAssessment = riskHistory[riskHistory.length - 1];
 
+  const filteredEnforcements = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return enforcements;
+    return enforcements.filter((enf) => {
+      const id = enf._id.toLowerCase();
+      const title = (enf.relatedCase?.title || "").toLowerCase();
+      const status = (enf.status || "").toLowerCase();
+      return id.includes(query) || title.includes(query) || status.includes(query);
+    });
+  }, [enforcements, searchQuery]);
+
+  const handleCaseSelect = (caseId) => {
+    const selected = enforcements.find((enf) => enf._id === caseId);
+    if (!selected) return;
+    setSelectedEnforcement(caseId);
+    const label = selected.relatedCase?.title
+      ? `${selected.relatedCase.title} (${selected._id.slice(-6).toUpperCase()})`
+      : `INVESTIGATION: ${selected._id.slice(-6).toUpperCase()}`;
+    setSearchQuery(label);
+    setShowCasePicker(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-[#0f172a] p-8 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden">
@@ -77,20 +121,57 @@ export default function OfficerAIRisk() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full md:w-64">
-               <select 
-                 value={selectedEnforcement}
-                 onChange={(e) => setSelectedEnforcement(e.target.value)}
-                 className="w-full appearance-none bg-slate-900 border border-slate-700 text-white py-3 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-sm"
-               >
-                 {enforcements.map(enf => (
-                   <option key={enf._id} value={enf._id}>
-                     Case: {enf._id.slice(-6).toUpperCase()}
-                   </option>
-                 ))}
-               </select>
-               <ChevronDown className="absolute right-4 top-3.5 w-4 h-4 text-slate-500 pointer-events-none" />
+          <div className="w-full md:w-[30rem]" ref={casePickerRef}>
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-3 w-3.5 h-3.5 text-slate-500" />
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowCasePicker(true);
+                }}
+                onFocus={() => setShowCasePicker(true)}
+                placeholder="Search case ID, title, or status..."
+                className="w-full bg-slate-900 border border-slate-700 text-white py-2.5 pl-9 pr-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-[11px] placeholder:text-slate-600"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCasePicker((prev) => !prev)}
+                className="absolute right-2 top-1.5 p-2 rounded-md text-slate-400 hover:text-slate-300"
+                title="Toggle case list"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
+
+              {showCasePicker && (
+                <div className="mt-2 max-h-72 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
+                  {filteredEnforcements.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-slate-400">No cases found</div>
+                  ) : (
+                    filteredEnforcements.map((enf) => {
+                      const label = enf.relatedCase?.title
+                        ? `${enf.relatedCase.title} (${enf._id.slice(-6).toUpperCase()})`
+                        : `INVESTIGATION: ${enf._id.slice(-6).toUpperCase()}`;
+
+                      return (
+                        <button
+                          key={enf._id}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleCaseSelect(enf._id)}
+                          className={`w-full text-left px-4 py-3 border-b last:border-b-0 border-slate-800 hover:bg-slate-800 transition ${
+                            selectedEnforcement === enf._id ? "bg-slate-800" : ""
+                          }`}
+                        >
+                          <div className="text-sm font-bold text-slate-100 truncate">{label}</div>
+                          <div className="mt-1 text-[11px] text-slate-400">Status: {enf.status?.replaceAll("_", " ")}</div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

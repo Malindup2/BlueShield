@@ -1,19 +1,26 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Ship, Radar, ArrowLeft, Calendar, AlertTriangle,
-  Hash, MapPin, StickyNote, Plus, ChevronDown, UserCheck,
-  CheckCircle, Loader2, Anchor
+  Ship, Radar, ArrowLeft, Calendar,
+  Hash, MapPin, Plus, ChevronDown, UserCheck,
+  CheckCircle, Loader2, Globe, AlertTriangle, Download
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
-  getCaseRecordById, trackVessel, addNote, escalateCase, getOfficers
+  getCaseRecordById,
+  trackVessel,
+  addNote,
+  escalateCase,
+  getOfficers,
 } from "../../../services/illegalCaseAPI";
+import { useTranslation, LANGUAGES } from "../../../hooks/useTranslation";
 
-// Fix leaflet icon
+// Fix default Leaflet marker icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -22,22 +29,220 @@ L.Icon.Default.mergeOptions({
 });
 
 function severityStyle(s) {
-  return {
+  return ({
     LOW: "bg-green-100 text-green-700",
     MEDIUM: "bg-amber-100 text-amber-700",
     HIGH: "bg-orange-100 text-orange-700",
     CRITICAL: "bg-red-100 text-red-700",
-  }[s] || "bg-slate-100 text-slate-600";
+  }[s] || "bg-slate-100 text-slate-600");
 }
 
 function riskColor(risk) {
-  return {
+  return ({
     low: "text-green-400",
     medium: "text-amber-400",
     high: "text-orange-400",
     critical: "text-red-400",
-  }[risk?.toLowerCase()] || "text-slate-400";
+  }[risk?.toLowerCase()] || "text-slate-400");
 }
+
+/**
+ * FRONTEND GUARD: Validates that trackedVesselData from the API is a proper
+ * vessel object and not a string, empty object {}, or null.
+ */
+function extractValidVessel(trackedVesselData) {
+  if (!trackedVesselData) return null;
+  if (typeof trackedVesselData !== "object" || Array.isArray(trackedVesselData)) return null;
+  const knownFields = ["imo", "vesselType", "registeredOwner", "riskCategory"];
+  const hasData = knownFields.some(
+    (f) => trackedVesselData[f] !== undefined && trackedVesselData[f] !== null && trackedVesselData[f] !== ""
+  );
+  return hasData ? trackedVesselData : null;
+}
+
+// ── PDF Generation ──────────────────────────────────────────────────────────
+function generatePDF(caseData) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 18;
+  const contentW = pageW - margin * 2;
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageW, 38, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor(255, 255, 255);
+  doc.text("BlueShield", margin, 16);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(148, 163, 184);
+  doc.text("Maritime Law Enforcement Platform", margin, 23);
+
+  doc.setFillColor(59, 130, 246);
+  doc.roundedRect(pageW - margin - 52, 10, 52, 14, 3, 3, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text("ILLEGAL CASE REVIEW", pageW - margin - 26, 18.5, { align: "center" });
+
+  doc.setDrawColor(59, 130, 246);
+  doc.setLineWidth(0.8);
+  doc.line(0, 38, pageW, 38);
+
+  let y = 50;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Case Review Report", margin, y);
+
+  doc.setFillColor(239, 246, 255);
+  doc.roundedRect(pageW - margin - 65, y - 8, 65, 12, 2, 2, "F");
+  doc.setFontSize(8);
+  doc.setTextColor(29, 78, 216);
+  doc.text(caseData.caseNumber || "N/A", pageW - margin - 32.5, y - 1, { align: "center" });
+
+  y += 5;
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(100, 116, 139);
+  const dateStr = caseData.createdAt ? format(new Date(caseData.createdAt), "MMMM dd, yyyy") : "N/A";
+  doc.text(`Generated: ${format(new Date(), "MMM dd, yyyy  HH:mm")}`, margin, y);
+  doc.text(`Record Date: ${dateStr}`, pageW / 2, y, { align: "center" });
+
+  const sevColors = { LOW: [34, 197, 94], MEDIUM: [234, 179, 8], HIGH: [249, 115, 22], CRITICAL: [239, 68, 68] };
+  const sevRgb = sevColors[caseData.severity] || [100, 116, 139];
+  doc.setFillColor(...sevRgb);
+  doc.roundedRect(pageW - margin - 30, y - 5, 30, 8, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.text(caseData.severity || "", pageW - margin - 15, y - 0.5, { align: "center" });
+
+  y += 12;
+
+  doc.setFillColor(248, 250, 252);
+  doc.rect(margin, y, contentW, 8, "F");
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.rect(margin, y, contentW, 8);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text("SECTION 1 — CASE OVERVIEW", margin + 4, y + 5.5);
+  y += 14;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text("CASE TITLE", margin, y);
+  y += 4;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  const titleLines = doc.splitTextToSize(caseData.title || "N/A", contentW);
+  doc.text(titleLines, margin, y);
+  y += titleLines.length * 6 + 6;
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [["Vessel ID", "Vessel Type"]],
+    body: [[caseData.vesselId || "N/A", caseData.vesselType || "N/A"]],
+    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+    bodyStyles: { fontSize: 9, textColor: [30, 41, 59] },
+    columnStyles: { 0: { fontStyle: "bold", textColor: [29, 78, 216] } },
+    theme: "grid",
+    tableLineColor: [226, 232, 240],
+    tableLineWidth: 0.3,
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.text("DESCRIPTION", margin, y);
+  y += 4;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(51, 65, 85);
+  const descLines = doc.splitTextToSize(caseData.description || "N/A", contentW);
+  doc.text(descLines, margin, y);
+  y += descLines.length * 5 + 10;
+
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageW - margin, y);
+  y += 10;
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(margin, y, contentW, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text("SECTION 2 — VESSEL TRACKING STATISTICS", margin + 4, y + 5.5);
+  y += 14;
+
+  const vessel = extractValidVessel(caseData.trackedVesselData);
+  if (!vessel) {
+    doc.setFillColor(255, 247, 237);
+    doc.roundedRect(margin, y, contentW, 14, 2, 2, "F");
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(194, 65, 12);
+    doc.text("Vessel data has not been tracked for this case yet.", margin + 4, y + 8.5);
+    y += 22;
+  } else {
+    const riskRgb = { low: [34, 197, 94], medium: [234, 179, 8], high: [249, 115, 22], critical: [239, 68, 68] }[vessel.riskCategory?.toLowerCase()] || [100, 116, 139];
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Field", "Value"]],
+      body: [
+        ["IMO Number", vessel.imo || "N/A"],
+        ["Vessel Type", vessel.vesselType || "N/A"],
+        ["Registered Owner", vessel.registeredOwner || "N/A"],
+        ["Risk Category", vessel.riskCategory?.toUpperCase() || "N/A"],
+        ["Previous Violations", String(vessel.previousViolations ?? "N/A")],
+      ],
+      headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
+      bodyStyles: { fontSize: 9.5, textColor: [30, 41, 59] },
+      columnStyles: { 0: { fontStyle: "bold", textColor: [71, 85, 105], cellWidth: 55 }, 1: { textColor: [15, 23, 42] } },
+      didParseCell: (data) => {
+        if (data.row.index === 3 && data.column.index === 1) { data.cell.styles.textColor = riskRgb; data.cell.styles.fontStyle = "bold"; }
+        if (data.row.index === 4 && data.column.index === 1 && parseInt(vessel.previousViolations) > 0) { data.cell.styles.textColor = [239, 68, 68]; data.cell.styles.fontStyle = "bold"; }
+      },
+      theme: "striped",
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      tableLineColor: [226, 232, 240],
+      tableLineWidth: 0.3,
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  const footerY = doc.internal.pageSize.getHeight() - 14;
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(margin, footerY - 4, pageW - margin, footerY - 4);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(148, 163, 184);
+  doc.text("BlueShield — Maritime Law Enforcement Platform", margin, footerY);
+  doc.text(`Case: ${caseData.caseNumber || "N/A"}  |  Status: ${caseData.status}  |  Confidential`, pageW - margin, footerY, { align: "right" });
+
+  const filename = `BlueShield_Case_${(caseData.caseNumber || "report").replace(/[^a-z0-9]/gi, "_")}.pdf`;
+  doc.save(filename);
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function IllegalCaseDetails() {
   const { caseId } = useParams();
@@ -58,6 +263,7 @@ export default function IllegalCaseDetails() {
         getCaseRecordById(caseId),
         getOfficers(),
       ]);
+      console.debug("[IllegalCaseDetails] trackedVesselData:", caseRes.data?.trackedVesselData);
       setCaseData(caseRes.data);
       setOfficers(officersRes.data || []);
     } catch {
@@ -70,13 +276,72 @@ export default function IllegalCaseDetails() {
   useEffect(() => { fetchCase(); }, [fetchCase]);
 
   const isFinalized = caseData?.status === "ESCALATED" || caseData?.status === "RESOLVED";
+  const canDownloadPDF = !!caseData?.trackButtonUsed;
+
+  const vessel = extractValidVessel(caseData?.trackedVesselData);
+
+  const textMap = useMemo(() => {
+    if (!caseData) return {};
+    return {
+      pageTitle: "Illegal Case Review Details",
+      pageSubtitle: "Full details for this case review record",
+      pageBadge: "Case Intelligence",
+      sectionOverview: "Case Overview",
+      labelTitle: "Title",
+      labelVesselId: "Vessel ID",
+      labelDescription: "Description",
+      labelVesselType: "Vessel Type",
+      labelDateCreated: "Date Created",
+      severityValue: `${caseData.severity} Severity`,
+      titleValue: caseData.title || "",
+      descriptionValue: caseData.description || "",
+      vesselTypeValue: caseData.vesselType || "",
+      vesselIdValue: caseData.vesselId || "",
+      dateValue: caseData.createdAt ? format(new Date(caseData.createdAt), "MMM dd, yyyy") : "",
+      sectionVesselTracking: "Vessel Tracking Statistics",
+      trackPrompt: "Track and fetch vessel info",
+      trackBtn: caseData.trackButtonUsed ? "Already Tracked" : "Track Vessel",
+      vesselDataLocked: "Vessel data locked",
+      labelImo: "IMO Number",
+      labelVesselTypeData: "Vessel Type",
+      labelOwner: "Registered Owner",
+      labelRiskCategory: "Risk Category",
+      labelViolations: "Previous Violations",
+      imoValue: vessel?.imo || "",
+      vesselTypeDataValue: vessel?.vesselType || "",
+      ownerValue: vessel?.registeredOwner || "",
+      riskCategoryValue: vessel?.riskCategory?.toUpperCase() || "",
+      violationsValue: vessel?.previousViolations !== undefined ? String(vessel.previousViolations) : "",
+      sectionNotes: "Operational Notes",
+      notePlaceholder: "Add a note…",
+      addNoteBtn: "Add",
+      referenceNotes: "Reference Notes",
+      assignOfficerLabel: "Assign Officer",
+      selectOfficerPlaceholder: "Select an officer…",
+      escalateBtn: "Escalate",
+      assignedOfficerLabel: "Assigned Officer",
+      assignedOfficerName: caseData.assignedOfficer?.name || "",
+      assignedOfficerEmail: caseData.assignedOfficer?.email || "",
+      sectionLocation: "View Location",
+      noLocation: "No location data available",
+      noLocationSub: "This report did not include a location",
+      downloadPdf: "Download PDF",
+      pdfDisabledHint: "Track vessel first to enable PDF",
+      ...(caseData.reviewNotes || []).reduce((acc, note, i) => {
+        acc[`note_${i}`] = note.content;
+        return acc;
+      }, {}),
+    };
+  }, [caseData, vessel]);
+
+  const { language, setLanguage, t, translating } = useTranslation(textMap);
 
   const handleTrack = async () => {
     setTracking(true);
     try {
       await trackVessel(caseId);
       toast.success("Vessel data fetched successfully");
-      fetchCase();
+      await fetchCase();
     } catch (err) {
       toast.error(err.response?.data?.message || "Tracking failed");
     } finally {
@@ -91,7 +356,7 @@ export default function IllegalCaseDetails() {
       await addNote(caseId, noteText.trim());
       setNoteText("");
       toast.success("Note added");
-      fetchCase();
+      await fetchCase();
     } catch {
       toast.error("Failed to add note");
     } finally {
@@ -100,19 +365,13 @@ export default function IllegalCaseDetails() {
   };
 
   const handleEscalate = async () => {
-    if (!caseData?.trackButtonUsed) {
-      toast.error("Please track the vessel data before escalating");
-      return;
-    }
-    if (!selectedOfficerId) {
-      toast.error("Please assign an officer to escalate the case further");
-      return;
-    }
+    if (!caseData?.trackButtonUsed) { toast.error("Please track the vessel data before escalating"); return; }
+    if (!selectedOfficerId) { toast.error("Please assign an officer to escalate the case further"); return; }
     setEscalating(true);
     try {
       await escalateCase(caseId, selectedOfficerId);
       toast.success("Case escalated successfully");
-      fetchCase();
+      await fetchCase();
     } catch (err) {
       toast.error(err.response?.data?.message || "Escalation failed");
     } finally {
@@ -133,14 +392,23 @@ export default function IllegalCaseDetails() {
       </div>
     );
   }
-
   if (!caseData) return null;
 
   const pos = getLatLng();
-  const vessel = caseData.trackedVesselData;
+
+  const vesselRows = vessel
+    ? [
+        { labelKey: "labelImo",           valueKey: "imoValue",           directVal: vessel.imo ?? "—",                          colored: false },
+        { labelKey: "labelVesselTypeData", valueKey: "vesselTypeDataValue", directVal: vessel.vesselType ?? "—",                  colored: false },
+        { labelKey: "labelOwner",          valueKey: "ownerValue",          directVal: vessel.registeredOwner ?? "—",             colored: false },
+        { labelKey: "labelRiskCategory",   valueKey: "riskCategoryValue",   directVal: vessel.riskCategory?.toUpperCase() ?? "—", colored: true  },
+        { labelKey: "labelViolations",     valueKey: "violationsValue",     directVal: String(vessel.previousViolations ?? "—"),  colored: false },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
+
       {/* Back */}
       <button
         onClick={() => navigate("/dashboard/illegal-admin/cases")}
@@ -149,116 +417,178 @@ export default function IllegalCaseDetails() {
         <ArrowLeft className="w-4 h-4" /> Back to Case Records
       </button>
 
-      {/* Page heading */}
-      <div>
-        <h1 className="text-2xl font-black text-slate-900">Illegal Case Review Details</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Full details for this case review record</p>
-      </div>
-
-      {/* Top row: Section 1 (Case Overview) + Section 2 (Vessel Tracking) */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-
-        {/* ── SECTION 1: Case Overview ──────────────────────────── */}
-        <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
-          {/* Header row */}
-          <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-black text-slate-900">Case Overview</h2>
-            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase flex-shrink-0 ${severityStyle(caseData.severity)}`}>
-              {caseData.severity} Severity
+      {/* Page Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 p-8 rounded-2xl border border-slate-700 shadow-xl">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex items-start justify-between gap-4">
+          <div>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-400/30 bg-blue-500/10 text-blue-300 text-[10px] font-black uppercase tracking-widest mb-3">
+              <AlertTriangle className="w-3 h-3" /> {t("pageBadge")}
             </span>
+            <h1 className="text-3xl font-black text-white tracking-tight">{t("pageTitle")}</h1>
+            <p className="text-slate-400 mt-1 text-sm">{t("pageSubtitle")}</p>
           </div>
 
-          {/* Title + Vessel ID row */}
+          {/* Language Selector */}
+          <div className="flex-shrink-0 flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-3 py-2 backdrop-blur-sm">
+              <Globe className="w-4 h-4 text-blue-300 flex-shrink-0" />
+              <div className="relative">
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  disabled={translating}
+                  className="bg-transparent text-white text-sm font-bold focus:outline-none cursor-pointer appearance-none pr-5 disabled:opacity-60"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code} className="text-slate-900 bg-white">
+                      {lang.flag} {lang.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-0 top-1 w-3 h-3 text-white/60 pointer-events-none" />
+              </div>
+              {translating && <Loader2 className="w-3.5 h-3.5 text-blue-300 animate-spin flex-shrink-0" />}
+            </div>
+            {language !== "en" && (
+              <span className="text-[10px] text-blue-300/70 font-bold">
+                {LANGUAGES.find((l) => l.code === language)?.label} — Azure AI
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Download PDF button — STYLE: dark green background */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => {
+            if (!canDownloadPDF) {
+              toast.error("Please track vessel data first to enable PDF download");
+              return;
+            }
+            generatePDF(caseData);
+            toast.success("PDF downloaded successfully");
+          }}
+          title={canDownloadPDF ? "Download case report as PDF" : t("pdfDisabledHint")}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition shadow-sm ${
+            canDownloadPDF
+              ? "bg-green-800 hover:bg-green-700 text-white"
+              : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+          }`}
+        >
+          <Download className="w-4 h-4" />
+          {t("downloadPdf")}
+          {!canDownloadPDF && (
+            <span className="ml-1 text-[10px] font-black uppercase tracking-wider opacity-70">(Track first)</span>
+          )}
+        </button>
+      </div>
+
+      {/* Top row: Section 1 + Section 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+        {/* SECTION 1 — Case Overview (light blue background) */}
+        <div className="lg:col-span-3 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-6 space-y-5">
+          <div className="flex items-start justify-between gap-3">
+            {/* Case Overview title in prominent navy label */}
+            <span className="inline-flex items-center px-3 py-1 rounded-lg bg-[#1e3a5f] text-white text-sm font-black shadow-sm">
+              {t("sectionOverview")}
+            </span>
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase flex-shrink-0 ${severityStyle(caseData.severity)}`}>
+              {t("severityValue")}
+            </span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Title</p>
-              <p className="font-black text-slate-900 text-sm leading-snug">{caseData.title}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t("labelTitle")}</p>
+              <p className="font-black text-slate-900 text-sm leading-snug">{t("titleValue")}</p>
             </div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-                <Hash className="w-3 h-3" /> Vessel ID
+                <Hash className="w-3 h-3" /> {t("labelVesselId")}
               </p>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-black text-sm border border-blue-100">
-                {caseData.vesselId}
+              {/*
+                STYLE: Vessel ID label — white background, dark blue border, bold dark blue text.
+                Replaces the previous navy/dark background label.
+              */}
+              <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-white text-[#1e3a8a] font-black text-sm border-2 border-[#1e3a8a]">
+                {t("vesselIdValue")}
               </span>
             </div>
           </div>
-
-          {/* Description */}
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Description</p>
-            <p className="text-sm text-slate-700 leading-relaxed">{caseData.description}</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t("labelDescription")}</p>
+            <p className="text-sm text-slate-700 leading-relaxed">{t("descriptionValue")}</p>
           </div>
-
-          {/* Vessel Type + Date row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Vessel Type</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t("labelVesselType")}</p>
               <div className="flex items-center gap-2">
                 <Ship className="w-4 h-4 text-slate-400" />
-                <span className="text-sm font-bold text-slate-900">{caseData.vesselType}</span>
+                <span className="text-sm font-bold text-slate-900">{t("vesselTypeValue")}</span>
               </div>
             </div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> Date Created
+                <Calendar className="w-3 h-3" /> {t("labelDateCreated")}
               </p>
-              <p className="text-sm font-bold text-slate-900">
-                {format(new Date(caseData.createdAt), "MMM dd, yyyy")}
-              </p>
+              <p className="text-sm font-bold text-slate-900">{t("dateValue")}</p>
             </div>
           </div>
         </div>
 
-        {/* ── SECTION 2: Vessel Tracking ──────────────────────────── */}
-        <div className="lg:col-span-2 rounded-2xl overflow-hidden shadow-sm"
-          style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0d2137 100%)" }}>
+        {/* SECTION 2 — Vessel Tracking (unchanged) */}
+        <div
+          className="lg:col-span-2 rounded-2xl overflow-hidden shadow-sm"
+          style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0d2137 100%)" }}
+        >
           <div className="p-6 h-full flex flex-col">
-            {/* Section title */}
             <div className="flex items-center justify-center gap-2 mb-4">
               <Radar className="w-5 h-5 text-blue-300" />
-              <h2 className="text-base font-black text-white text-center">Vessel Tracking Statistics</h2>
+              <h2 className="text-base font-black text-white text-center">{t("sectionVesselTracking")}</h2>
             </div>
 
-            {/* Content area */}
             <div className="flex-1 flex flex-col items-center justify-center">
               {vessel ? (
-                /* Vessel data display */
                 <div className="w-full space-y-3">
-                  {[
-                    { label: "IMO Number", value: vessel.imo },
-                    { label: "Vessel Type", value: vessel.vesselType },
-                    { label: "Registered Owner", value: vessel.registeredOwner },
-                    {
-                      label: "Risk Category",
-                      value: vessel.riskCategory?.toUpperCase(),
-                      extra: riskColor(vessel.riskCategory),
-                    },
-                    { label: "Previous Violations", value: vessel.previousViolations?.toString() },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between bg-white/10 rounded-xl px-4 py-2.5 border border-white/10">
-                      <span className="text-xs font-bold text-slate-300">{item.label}</span>
-                      <span className={`text-xs font-black ${item.extra || "text-white"}`}>
-                        {item.value}
-                      </span>
-                    </div>
-                  ))}
+                  {vesselRows.map((item) => {
+                    const displayValue = t(item.valueKey) || item.directVal;
+                    return (
+                      <div key={item.labelKey} className="flex items-center justify-between bg-white/10 rounded-xl px-4 py-2.5 border border-white/10">
+                        <span className="text-xs font-bold text-slate-300">{t(item.labelKey)}</span>
+                        <span className={`text-xs font-black ${item.colored ? riskColor(vessel?.riskCategory) : "text-white"}`}>
+                          {displayValue}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : caseData.trackButtonUsed ? (
+                <div className="flex flex-col items-center gap-3 text-center px-2">
+                  <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-400/30 flex items-center justify-center">
+                    <Radar className="w-8 h-8 text-amber-300/70" />
+                  </div>
+                  <p className="text-amber-300 text-xs font-bold">
+                    Vessel data could not be retrieved at the time of tracking.
+                  </p>
+                  <p className="text-slate-400 text-[11px]">
+                    The tracking action has been recorded. Please contact your administrator if this data is required.
+                  </p>
                 </div>
               ) : (
-                /* Pre-track state */
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm flex items-center justify-center">
                     <Radar className="w-8 h-8 text-white/60" />
                   </div>
-                  <p className="text-blue-300 text-sm font-bold italic">Track and fetch vessel info</p>
+                  <p className="text-blue-300 text-sm font-bold italic">{t("trackPrompt")}</p>
                 </div>
               )}
             </div>
 
-            {/* Track button */}
             <div className="mt-5">
               {isFinalized && vessel ? (
-                <div className="text-center text-xs text-slate-400 font-bold">Vessel data locked</div>
+                <div className="text-center text-xs text-slate-400 font-bold">{t("vesselDataLocked")}</div>
               ) : (
                 <button
                   onClick={handleTrack}
@@ -270,7 +600,7 @@ export default function IllegalCaseDetails() {
                   }`}
                 >
                   {tracking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
-                  {caseData.trackButtonUsed ? "Already Tracked" : "Track Vessel"}
+                  {t("trackBtn")}
                 </button>
               )}
             </div>
@@ -278,21 +608,32 @@ export default function IllegalCaseDetails() {
         </div>
       </div>
 
-      {/* Bottom row: Section 3 (Notes) + Section 4 (Location Map) */}
+      {/* Bottom row: Section 3 + Section 4 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        {/* ── SECTION 3: Operational Notes ──────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
-          <h2 className="text-base font-black text-slate-900">Operational Notes</h2>
+        {/* SECTION 3 — Operational Notes (double-lined dark grey border) */}
+        <div
+          className="bg-white rounded-2xl shadow-sm p-6 space-y-5"
+          style={{
+            border: "2px solid #4b5563",
+            outline: "1px solid #9ca3af",
+            outlineOffset: "3px",
+          }}
+        >
+          <h2 className="text-base font-black text-slate-900">{t("sectionNotes")}</h2>
 
-          {/* Add note input */}
           <div className="space-y-2">
+            {/*
+              STYLE: textarea background changed to light pastel blue.
+              Only the textarea itself is pastel blue — the surrounding area is unchanged.
+            */}
             <textarea
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Add a note…"
+              placeholder={t("notePlaceholder")}
               rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              style={{ backgroundColor: "#e3eaf6" }}
             />
             <button
               onClick={handleAddNote}
@@ -300,14 +641,13 @@ export default function IllegalCaseDetails() {
               className="px-5 py-2.5 bg-[#0f172a] text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition disabled:opacity-50 flex items-center gap-2"
             >
               {addingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              Add
+              {t("addNoteBtn")}
             </button>
           </div>
 
-          {/* Reference notes list */}
           {caseData.reviewNotes?.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Reference Notes</p>
+              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{t("referenceNotes")}</p>
               <ul className="space-y-2">
                 {caseData.reviewNotes.map((note, i) => (
                   <li key={i} className="flex gap-3 text-sm">
@@ -316,7 +656,7 @@ export default function IllegalCaseDetails() {
                       <span className="text-[10px] font-black text-slate-400 mr-2">
                         {format(new Date(note.addedAt), "MMM dd, yyyy")}
                       </span>
-                      <span className="text-slate-700">{note.content}</span>
+                      <span className="text-slate-700">{t(`note_${i}`)}</span>
                     </div>
                   </li>
                 ))}
@@ -324,26 +664,22 @@ export default function IllegalCaseDetails() {
             </div>
           )}
 
-          {/* Assign Officer + Escalate — only show when OPEN */}
           {!isFinalized && (
             <div className="pt-4 border-t border-slate-100 space-y-3">
-              <label className="block text-sm font-bold text-slate-700">
-                Assign Officer
-              </label>
+              <label className="block text-sm font-bold text-slate-700">{t("assignOfficerLabel")}</label>
               <div className="relative">
                 <select
                   value={selectedOfficerId}
                   onChange={(e) => setSelectedOfficerId(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                 >
-                  <option value="">Select an officer…</option>
+                  <option value="">{t("selectOfficerPlaceholder")}</option>
                   {officers.map((o) => (
                     <option key={o._id} value={o._id}>{o.name} — {o.email}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
-
               {selectedOfficerId && (
                 <button
                   onClick={handleEscalate}
@@ -351,23 +687,22 @@ export default function IllegalCaseDetails() {
                   className="w-full py-3 bg-[#0f172a] hover:bg-slate-800 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition disabled:opacity-60"
                 >
                   {escalating ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-                  Escalate
+                  {t("escalateBtn")}
                 </button>
               )}
             </div>
           )}
 
-          {/* Show assigned officer when finalized */}
           {isFinalized && caseData.assignedOfficer && (
             <div className="pt-4 border-t border-slate-100">
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Assigned Officer</p>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("assignedOfficerLabel")}</p>
               <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
                 <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-sm">
                   {caseData.assignedOfficer.name?.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-black text-slate-900 text-sm">{caseData.assignedOfficer.name}</p>
-                  <p className="text-xs text-slate-400">{caseData.assignedOfficer.email}</p>
+                  <p className="font-black text-slate-900 text-sm">{t("assignedOfficerName")}</p>
+                  <p className="text-xs text-slate-400">{t("assignedOfficerEmail")}</p>
                 </div>
                 <CheckCircle className="w-4 h-4 text-emerald-600 ml-auto" />
               </div>
@@ -375,11 +710,11 @@ export default function IllegalCaseDetails() {
           )}
         </div>
 
-        {/* ── SECTION 4: Location Map ──────────────────────────── */}
+        {/* SECTION 4 — Location Map (unchanged) */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-red-500" />
-            <h2 className="text-base font-black text-slate-900">View Location</h2>
+            <h2 className="text-base font-black text-slate-900">{t("sectionLocation")}</h2>
           </div>
           {pos ? (
             <>
@@ -387,12 +722,7 @@ export default function IllegalCaseDetails() {
                 <p className="text-xs text-slate-400">{caseData.baseReport.location.address}</p>
               )}
               <div className="h-64 rounded-xl overflow-hidden border border-slate-200">
-                <MapContainer
-                  center={[pos.lat, pos.lng]}
-                  zoom={9}
-                  style={{ height: "100%", width: "100%" }}
-                  scrollWheelZoom={false}
-                >
+                <MapContainer center={[pos.lat, pos.lng]} zoom={9} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <Marker position={[pos.lat, pos.lng]}>
                     <Popup>
@@ -405,8 +735,8 @@ export default function IllegalCaseDetails() {
           ) : (
             <div className="h-64 rounded-xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
               <MapPin className="w-8 h-8 mb-2" />
-              <p className="text-sm font-bold">No location data available</p>
-              <p className="text-xs mt-1">This report did not include a location</p>
+              <p className="text-sm font-bold">{t("noLocation")}</p>
+              <p className="text-xs mt-1">{t("noLocationSub")}</p>
             </div>
           )}
         </div>

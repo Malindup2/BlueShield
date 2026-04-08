@@ -13,6 +13,8 @@ app.use('/api/zones', require('./routes/zoneRoutes'));
 app.use('/api/illegal-cases', require('./routes/illegalCaseRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 app.use('/api/vessels', require('./routes/vesselRoutes'));
+app.use('/api/translate', require('./routes/translationRoutes'));
+
 
 app.get('/', (req, res) => {
   res.send('BlueShield API is running...');

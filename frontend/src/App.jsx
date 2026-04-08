@@ -6,6 +6,7 @@ import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import CreateReport from "./pages/SubmitAReport";
+import MyReports from "./pages/MyReports";
 
 import DashboardLayout from "./components/layout/DashboardLayout";
 import ProtectedRoute from "./components/common/ProtectedRoute";
@@ -27,13 +28,25 @@ import IllegalCaseDetails from "./pages/dashboards/illegal-admin/IllegalCaseDeta
 import IllegalCaseForm from "./pages/dashboards/illegal-admin/IllegalCaseForm";
 import ResolvedIllegalCases from "./pages/dashboards/illegal-admin/ResolvedIllegalCases";
 
+
+// Hazard Admin pages
 import HazardAdminHome from "./pages/dashboards/hazard-admin/HazardAdminHome";
+import HazardAdminReports from "./pages/dashboards/hazard-admin/HazardAdminReports";
+import HazardCreateCase from "./pages/dashboards/hazard-admin/HazardCreateCase";
+import HazardCases from "./pages/dashboards/hazard-admin/HazardCases";
+import HazardCaseDetails from "./pages/dashboards/hazard-admin/HazardCaseDetails";
+import HazardCaseEdit from "./pages/dashboards/hazard-admin/HazardCaseEdit";
+import Zones from "./pages/dashboards/hazard-admin/Zones";
+
+
 import SystemAdminHome from "./pages/dashboards/system-admin/SystemAdminHome";
 import ModulePlaceholder from "./pages/common/ModulePlaceholder";
 
 import PrivacyPolicy from "./pages/info/PrivacyPolicy";
 import TermsOfService from "./pages/info/TermsOfService";
 import SafetyGuides from "./pages/info/SafetyGuides";
+
+
 
 const ILLEGAL_ROLES = ["ILLEGAL_ADMIN", "SYSTEM_ADMIN"];
 
@@ -51,6 +64,15 @@ export default function App() {
 
             {/* COMMON */}
             <Route path="report" element={<ProtectedRoute allowedRoles={["FISHERMAN","OFFICER","SYSTEM_ADMIN"]}><CreateReport /></ProtectedRoute>} />
+
+            <Route
+              path="my-reports"
+              element={
+                <ProtectedRoute allowedRoles={["FISHERMAN", "OFFICER", "SYSTEM_ADMIN"]}>
+                  <MyReports />
+                </ProtectedRoute>
+              }
+            />
 
             {/* FISHERMAN */}
             <Route path="fisherman" element={<ProtectedRoute allowedRoles={["FISHERMAN"]}><FishermanHome /></ProtectedRoute>} />
@@ -75,9 +97,14 @@ export default function App() {
 
             {/* HAZARD ADMIN */}
             <Route path="hazard-admin" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardAdminHome /></ProtectedRoute>} />
-            <Route path="hazard-admin/reports" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><ModulePlaceholder title="Hazard Reports" note="Reserved." /></ProtectedRoute>} />
-            <Route path="hazard-admin/zones" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><ModulePlaceholder title="Hazard Zones" note="Reserved." /></ProtectedRoute>} />
-            <Route path="hazard-admin/cases" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><ModulePlaceholder title="Hazard Cases" note="Reserved." /></ProtectedRoute>} />
+            <Route path="hazard-admin/reports" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardAdminReports /></ProtectedRoute>} />
+            <Route path="hazard-admin/reports/:reportId/create-case" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCreateCase /></ProtectedRoute>} />
+            <Route path="hazard-admin/cases" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCases/></ProtectedRoute>} />
+            <Route path="hazard-admin/cases/:id" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCaseDetails/></ProtectedRoute>} />
+            <Route path="hazard-admin/cases/:id/edit" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCaseEdit/></ProtectedRoute>} />
+            <Route path="hazard-admin/zones" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><Zones /></ProtectedRoute>} />
+            
+           
 
             {/* SYSTEM ADMIN */}
             <Route path="system-admin" element={<ProtectedRoute allowedRoles={["SYSTEM_ADMIN"]}><SystemAdminHome /></ProtectedRoute>} />

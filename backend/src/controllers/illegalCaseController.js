@@ -26,12 +26,12 @@ exports.updateCase = async (req, res) => {
 };
 
 exports.listCases = async (req, res) => {
-  try { res.json(await illegalCaseService.listCases({ query: req.query })); }
+  try { res.json(await illegalCaseService.listCases({ query: req.query, user: req.user })); }
   catch (e) { res.status(500).json({ message: e.message }); }
 };
 
 exports.getCaseById = async (req, res) => {
-  try { res.json(await illegalCaseService.getCaseById(req.params.caseId)); }
+  try { res.json(await illegalCaseService.getCaseById(req.params.caseId, req.user)); }
   catch (e) { res.status(e.statusCode || 500).json({ message: e.message }); }
 };
 
@@ -50,11 +50,11 @@ exports.escalateCase = async (req, res) => {
   catch (e) { res.status(e.statusCode || 500).json({ message: e.message }); }
 };
 
-/**
- * POST /api/illegal-cases/:caseId/resolve
- * Called when enforcement reaches CLOSED_RESOLVED.
- * Sets IllegalCase → RESOLVED and Report → RESOLVED.
- */
+
+ // POST /api/illegal-cases/:caseId/resolve
+ //Called when enforcement reaches CLOSED_RESOLVED.
+ // Sets IllegalCase  RESOLVED and Report RESOLVED.
+ 
 exports.resolveCase = async (req, res) => {
   try { res.json(await illegalCaseService.resolveCase({ caseId: req.params.caseId })); }
   catch (e) { res.status(e.statusCode || 500).json({ message: e.message }); }

@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 // Team member roles for multi-officer operations
 const TEAM_ROLES = ["LEAD_INVESTIGATOR", "INVESTIGATOR", "EVIDENCE_HANDLER", "SURVEILLANCE", "LEGAL_LIAISON", "SUPPORT"];
-const TEAM_STATUS = ["ACTIVE", "ON_LEAVE", "RELIEVED"];
+const TEAM_STATUS = ["ON_DUTY", "AVAILABLE", "ON_LEAVE", "RELIEVED"];
 
 const teamMemberSchema = new mongoose.Schema(
   {
@@ -53,7 +53,7 @@ const teamMemberSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: TEAM_STATUS,
-      default: "ACTIVE",
+      default: "ON_DUTY",
     },
     specialization: {
       type: String,

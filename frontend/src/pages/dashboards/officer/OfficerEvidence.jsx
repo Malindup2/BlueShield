@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, FileSearch, Filter, Lock, Paperclip, Search, ShieldCheck, Upload, X, ExternalLink, FileStack, Activity, Sparkles, RefreshCw } from "lucide-react";
+import { ChevronDown, FileSearch, Filter, Lock, Paperclip, Search, ShieldCheck, Upload, X, ExternalLink, FileStack, Activity, Sparkles, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { Skeleton } from "../../../components/common/Skeleton";
@@ -12,6 +12,12 @@ const EVIDENCE_CONDITIONS = ["INTACT", "DAMAGED", "DETERIORATED", "SEALED"];
 const getAttachmentLabel = (attachment, index) => {
   if (attachment?.filename) return attachment.filename;
   return `Attachment ${index + 1}`;
+};
+
+const getApiErrorMessage = (error, fallback) => {
+  const details = error?.response?.data?.errors;
+  if (Array.isArray(details) && details.length > 0) return details[0];
+  return error?.response?.data?.message || error?.message || fallback;
 };
 
 export default function OfficerEvidence() {
@@ -29,9 +35,11 @@ export default function OfficerEvidence() {
   const [showEditEvidenceModal, setShowEditEvidenceModal] = useState(false);
   const [submittingEvidence, setSubmittingEvidence] = useState(false);
   const [updatingEvidenceId, setUpdatingEvidenceId] = useState("");
+  const [editingEnforcementId, setEditingEnforcementId] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [evidenceIdToDelete, setEvidenceIdToDelete] = useState("");
+  const [evidenceCaseIdToDelete, setEvidenceCaseIdToDelete] = useState("");
   const casePickerRef = useRef(null);
   const [evidenceForm, setEvidenceForm] = useState({
     evidenceType: "PHOTOGRAPH",
@@ -60,7 +68,39 @@ export default function OfficerEvidence() {
     setLoading(true);
     try {
       const res = await getEvidence(enforcementId);
-      setEvidenceItems(Array.isArray(res) ? res : []);
+      const items = Array.isArray(res) ? res : [];
+      setEvidenceItems(items.map((item) => ({ ...item, _caseId: enforcementId })));
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load evidence items");
+    } finally {
+      setTimeout(() => setLoading(false), 800);
+    }
+  };
+
+  const fetchAllEvidenceItems = async (casesList = enforcements) => {
+    if (!Array.isArray(casesList) || casesList.length === 0) {
+      setEvidenceItems([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const responses = await Promise.allSettled(
+        casesList.map((enf) => getEvidence(enf._id))
+      );
+
+      const mergedItems = responses.flatMap((result, index) => {
+        if (result.status !== "fulfilled" || !Array.isArray(result.value)) return [];
+
+        const enforcement = casesList[index];
+        return result.value.map((item) => ({
+          ...item,
+          _caseId: enforcement?._id || "",
+        }));
+      });
+
+      setEvidenceItems(mergedItems);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load evidence items");
@@ -76,10 +116,7 @@ export default function OfficerEvidence() {
       .then(res => {
         const cases = res.items || [];
         setEnforcements(cases);
-        // Automatically select the first case so the page isn't empty
-        if (cases.length > 0) {
-          setSelectedEnforcement(cases[0]._id);
-        }
+        fetchAllEvidenceItems(cases);
       })
       .catch(err => console.error(err));
   }, []);
@@ -161,7 +198,7 @@ export default function OfficerEvidence() {
       formData.append("notes", evidenceForm.notes.trim());
     }
     evidenceForm.files.forEach((file) => {
-      formData.append("files", file);
+      formData.append("attachments", file);
     });
 
     setSubmittingEvidence(true);
@@ -173,22 +210,26 @@ export default function OfficerEvidence() {
       fetchEvidenceItems(selectedEnforcement);
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data?.message || "Failed to log evidence");
+      toast.error(getApiErrorMessage(error, "Failed to log evidence"));
     } finally {
       setSubmittingEvidence(false);
     }
   };
 
-  const handleVerifyEvidence = async (evidenceId) => {
-    if (!selectedEnforcement || !evidenceId) return;
+  const handleVerifyEvidence = async (evidenceId, enforcementId = selectedEnforcement) => {
+    if (!enforcementId || !evidenceId) return;
     setUpdatingEvidenceId(evidenceId);
 
     try {
       const formData = new FormData();
       formData.append("verified", "true");
-      await updateEvidence(selectedEnforcement, evidenceId, formData);
+      await updateEvidence(enforcementId, evidenceId, formData);
       toast.success("Evidence verified");
-      fetchEvidenceItems(selectedEnforcement);
+      if (selectedEnforcement) {
+        fetchEvidenceItems(selectedEnforcement);
+      } else {
+        fetchAllEvidenceItems();
+      }
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data?.message || "Failed to verify evidence");
@@ -198,15 +239,21 @@ export default function OfficerEvidence() {
   };
 
   const handleDeleteEvidence = async () => {
-    if (!selectedEnforcement || !evidenceIdToDelete) return;
+    const targetCaseId = evidenceCaseIdToDelete || selectedEnforcement;
+    if (!targetCaseId || !evidenceIdToDelete) return;
 
     setUpdatingEvidenceId(evidenceIdToDelete);
     try {
-      await deleteEvidence(selectedEnforcement, evidenceIdToDelete);
+      await deleteEvidence(targetCaseId, evidenceIdToDelete);
       toast.success("Evidence deleted");
       setShowDeleteConfirmModal(false);
       setEvidenceIdToDelete("");
-      fetchEvidenceItems(selectedEnforcement);
+      setEvidenceCaseIdToDelete("");
+      if (selectedEnforcement) {
+        fetchEvidenceItems(selectedEnforcement);
+      } else {
+        fetchAllEvidenceItems();
+      }
     } catch (error) {
       console.error(error);
       toast.error(error?.response?.data?.message || "Failed to delete evidence");
@@ -215,12 +262,14 @@ export default function OfficerEvidence() {
     }
   };
 
-  const requestDeleteEvidence = (evidenceId) => {
+  const requestDeleteEvidence = (evidenceId, enforcementId = selectedEnforcement) => {
     setEvidenceIdToDelete(evidenceId);
+    setEvidenceCaseIdToDelete(enforcementId || "");
     setShowDeleteConfirmModal(true);
   };
 
   const openEditEvidenceModal = (evidence) => {
+    setEditingEnforcementId(evidence._caseId || selectedEnforcement || "");
     setEditEvidenceForm({
       evidenceId: evidence._id,
       evidenceType: evidence.evidenceType || "PHOTOGRAPH",
@@ -241,7 +290,8 @@ export default function OfficerEvidence() {
 
   const handleEditEvidenceSubmit = async (event) => {
     event.preventDefault();
-    if (!selectedEnforcement || !editEvidenceForm.evidenceId) return;
+    const targetCaseId = editingEnforcementId || selectedEnforcement;
+    if (!targetCaseId || !editEvidenceForm.evidenceId) return;
 
     const formData = new FormData();
     formData.append("evidenceType", editEvidenceForm.evidenceType);
@@ -259,18 +309,23 @@ export default function OfficerEvidence() {
       formData.append("notes", editEvidenceForm.notes.trim());
     }
     editEvidenceForm.files.forEach((file) => {
-      formData.append("files", file);
+      formData.append("attachments", file);
     });
 
     setEditSubmitting(true);
     try {
-      await updateEvidence(selectedEnforcement, editEvidenceForm.evidenceId, formData);
+      await updateEvidence(targetCaseId, editEvidenceForm.evidenceId, formData);
       toast.success("Evidence updated successfully");
       setShowEditEvidenceModal(false);
-      fetchEvidenceItems(selectedEnforcement);
+      setEditingEnforcementId("");
+      if (selectedEnforcement) {
+        fetchEvidenceItems(selectedEnforcement);
+      } else {
+        fetchAllEvidenceItems();
+      }
     } catch (error) {
       console.error(error);
-      toast.error(error?.response?.data?.message || "Failed to update evidence");
+      toast.error(getApiErrorMessage(error, "Failed to update evidence"));
     } finally {
       setEditSubmitting(false);
     }
@@ -350,7 +405,7 @@ export default function OfficerEvidence() {
     setSelectedEnforcement("");
     setCaseSearchTerm("");
     setShowCasePicker(false);
-    setEvidenceItems([]); // Clear current list
+    fetchAllEvidenceItems();
   };
 
   return (
@@ -378,55 +433,9 @@ export default function OfficerEvidence() {
         </div>
 
         <div className="relative z-10 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm space-y-4">
-          <div className="flex items-center gap-3 w-full lg:w-auto">
-          <div className="w-full lg:w-[32rem]">
-            {selectedCase && !showCasePicker ? (
-              // Enhanced "Active Case" Card
-              <div className="flex items-center justify-between rounded-2xl border border-blue-400/30 bg-blue-500/10 p-3.5 backdrop-blur-md shadow-inner">
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black uppercase text-blue-300/70 tracking-[0.2em] mb-1">Active Case</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-black text-white font-mono tracking-wider">
-                        {getCaseDisplayLabel(selectedCase)}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${
-                          selectedCase.status === "CLOSED_RESOLVED" ? "border-emerald-500 bg-emerald-500/20 text-emerald-300" :
-                          "border-amber-500 bg-amber-500/20 text-amber-300"
-                        }`}>
-                          {selectedCase.status?.replace("_", " ")}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${
-                          selectedCase.priority === "CRITICAL" ? "border-rose-500 bg-rose-500/20 text-rose-300 animate-pulse" :
-                          "border-blue-500 bg-blue-500/20 text-blue-300"
-                        }`}>
-                          {selectedCase.priority}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowCasePicker(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white text-[11px] font-black uppercase tracking-wider hover:bg-white/20 transition border border-white/10"
-                    title="Switch Case"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" /> Switch
-                  </button>
-                  <button
-                    onClick={handleClearSelection}
-                    className="p-1.5 rounded-lg bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 transition border border-rose-500/20"
-                    title="Clear Selection"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // Search Input Mode
-              <div ref={casePickerRef} className="relative">
+          <div className="w-full lg:w-[38rem] space-y-3" ref={casePickerRef}>
+            <div className="rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
+              <div className="relative">
                 <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   value={caseSearchTerm}
@@ -435,19 +444,20 @@ export default function OfficerEvidence() {
                     setShowCasePicker(true);
                   }}
                   onFocus={() => setShowCasePicker(true)}
-                  placeholder="Select a case by ID, status, or priority..."
+                  placeholder="Select case by ID, status or priority"
                   className="w-full rounded-xl border border-white/20 bg-white/90 pl-10 pr-10 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCasePicker((prev) => !prev)}
-                  className="absolute right-2 top-2 p-1.5 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2 top-2 p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  title="Toggle case list"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </button>
 
                 {showCasePicker && (
-                  <div className="absolute z-20 mt-2 w-full rounded-lg border border-slate-200 bg-white shadow-2xl max-h-72 overflow-y-auto">
+                  <div className="mt-2 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl">
                     {filteredCases.length === 0 ? (
                       <div className="px-4 py-3 text-sm text-slate-500">No matching cases found.</div>
                     ) : (
@@ -458,7 +468,7 @@ export default function OfficerEvidence() {
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleCaseSelect(enf._id)}
                           className={`w-full text-left px-4 py-3 border-b last:border-b-0 border-slate-100 hover:bg-blue-50 transition ${
-                            selectedEnforcement === enf._id ? "bg-blue-50/50" : ""
+                            selectedEnforcement === enf._id ? "bg-blue-50" : ""
                           }`}
                         >
                           <div className="flex justify-between items-center">
@@ -478,12 +488,35 @@ export default function OfficerEvidence() {
                   </div>
                 )}
               </div>
-            )}
-            <div className="mt-2 flex items-center justify-between text-[11px] text-blue-200/60 font-semibold uppercase tracking-wider">
-              <span>{selectedCase ? "Active Investigation" : "Select Case to Load Evidence"}</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedCase ? (
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white">
+                  <span className="uppercase tracking-wider text-slate-200/80">Connected</span>
+                  <span className="font-mono">{getCaseDisplayLabel(selectedCase)}</span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-200/80">
+                  No Case Selected
+                </div>
+              )}
+
+              {selectedCase ? (
+                <button
+                  onClick={handleClearSelection}
+                  className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/20"
+                  title="Clear Selection"
+                >
+                  <X className="w-3.5 h-3.5" /> Clear
+                </button>
+              ) : null}
+            </div>
+
+            <div className="mt-1 flex items-center justify-between text-[11px] text-slate-200/70 font-semibold uppercase tracking-wider">
+              <span>{selectedCase ? "Evidence Filtered by Case" : "Showing Evidence Across Cases"}</span>
               <span>{enforcements.length} Cases Available</span>
             </div>
-          </div>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -617,7 +650,9 @@ export default function OfficerEvidence() {
                <h3 className="text-lg font-bold text-slate-700">No Evidence Found</h3>
                <p className="text-slate-500 max-w-sm mt-2">
                  {evidenceItems.length === 0
-                   ? "There is no digital evidence logged for this enforcement case yet."
+                   ? selectedEnforcement
+                     ? "There is no digital evidence logged for this enforcement case yet."
+                     : "There is no digital evidence logged across available cases yet."
                    : "No records match the current search or filter settings."}
                </p>
                {evidenceItems.length > 0 && (
@@ -631,19 +666,33 @@ export default function OfficerEvidence() {
              </div>
           ) : (
             filteredEvidence.map((ev) => {
+              const isReportLinked = ev.source === "REPORT_ATTACHMENT";
               const enforcementId =
                 typeof ev.enforcement === "string"
                   ? ev.enforcement
                   : ev.enforcement?._id;
-              const caseIdLabel = (enforcementId || selectedEnforcement || "").slice(-6).toUpperCase() || "N/A";
+              const caseIdValue = ev._caseId || enforcementId || selectedEnforcement || "";
+              const caseIdLabel = caseIdValue ? caseIdValue.slice(-6).toUpperCase() : "N/A";
+              const pairLabel = caseIdLabel !== "N/A" ? `PAIR-${caseIdLabel}` : "PAIR-UNKNOWN";
 
               return (
               <div key={ev._id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-start mb-4">
-                    <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                      {ev.evidenceType}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px] font-black uppercase tracking-widest border border-slate-200">
+                        {ev.evidenceType}
+                      </span>
+                      {isReportLinked ? (
+                        <span className="px-2 py-1 bg-cyan-50 text-cyan-700 rounded text-[10px] font-black uppercase tracking-widest border border-cyan-200">
+                          Fisherman Report
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-[10px] font-black uppercase tracking-widest border border-blue-200">
+                          Officer Evidence
+                        </span>
+                      )}
+                    </div>
                     {ev.isSealed && (
                       <span className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200 uppercase tracking-widest">
                         <Lock className="w-3 h-3" /> Sealed
@@ -659,6 +708,12 @@ export default function OfficerEvidence() {
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-600">Case ID</p>
                     <p className="mt-1 text-sm font-black font-mono text-blue-900 tracking-wide">
                       {caseIdLabel}
+                    </p>
+                  </div>
+                  <div className="mt-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-600">Pair Tag</p>
+                    <p className="mt-1 text-sm font-black font-mono text-violet-900 tracking-wide">
+                      {pairLabel}
                     </p>
                   </div>
 
@@ -704,33 +759,43 @@ export default function OfficerEvidence() {
                    <div className="text-xs text-slate-500">
                      Logged on {format(new Date(ev.collectedAt), "MMM d")}
                    </div>
-                   <button
-                     onClick={() => openEditEvidenceModal(ev)}
-                     disabled={updatingEvidenceId === ev._id}
-                     className="text-sm font-bold text-slate-600 hover:text-slate-800 disabled:opacity-60"
-                   >
-                     Edit
-                   </button>
+                   {isReportLinked ? (
+                     <div className="text-xs font-bold text-cyan-700">Read-only source</div>
+                   ) : (
+                     <button
+                       onClick={() => openEditEvidenceModal(ev)}
+                       disabled={updatingEvidenceId === ev._id}
+                       className="text-sm font-bold text-slate-600 hover:text-slate-800 disabled:opacity-60"
+                     >
+                       Edit
+                     </button>
+                   )}
                    {ev.verifiedBy ? (
                      <div className="flex items-center gap-1 text-emerald-600 text-xs font-bold">
                        <ShieldCheck className="w-4 h-4" /> Verified
                      </div>
+                   ) : isReportLinked ? (
+                     <div className="text-xs font-bold text-slate-400">Report attachment</div>
                    ) : (
                      <button
-                       onClick={() => handleVerifyEvidence(ev._id)}
+                       onClick={() => handleVerifyEvidence(ev._id, ev._caseId || selectedEnforcement)}
                        disabled={updatingEvidenceId === ev._id}
                        className="text-sm font-bold text-blue-600 hover:text-blue-800 disabled:opacity-60"
                      >
                        Verify
                      </button>
                    )}
-                   <button
-                     onClick={() => requestDeleteEvidence(ev._id)}
-                     disabled={updatingEvidenceId === ev._id}
-                     className="text-sm font-bold text-red-600 hover:text-red-800 disabled:opacity-60"
-                   >
-                     Delete
-                   </button>
+                   {!isReportLinked ? (
+                     <button
+                       onClick={() => requestDeleteEvidence(ev._id, ev._caseId || selectedEnforcement)}
+                       disabled={updatingEvidenceId === ev._id}
+                       className="text-sm font-bold text-red-600 hover:text-red-800 disabled:opacity-60"
+                     >
+                       Delete
+                     </button>
+                   ) : (
+                     <div className="text-xs font-bold text-slate-400">Protected</div>
+                   )}
                 </div>
               </div>
               );

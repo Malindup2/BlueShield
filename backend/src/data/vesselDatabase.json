@@ -1,0 +1,167 @@
+[
+  {
+    "mmsi": "311000001",
+    "name": "MV Pacific Horizon",
+    "type": "Bulk Carrier",
+    "ownerName": "James Carter",
+    "owningCompany": "Pacific Maritime Holdings Ltd",
+    "owningCountry": "Panama",
+    "speed": 11,
+    "course": 85,
+    "status": "MOVING"
+  },
+  {
+    "mmsi": "312000002",
+    "name": "FV Sea Dragon",
+    "type": "Fishing Vessel",
+    "ownerName": "Chen Wei",
+    "owningCompany": "Dragon Sea Fisheries Co",
+    "owningCountry": "China",
+    "speed": 6,
+    "course": 210,
+    "status": "FISHING"
+  },
+  {
+    "mmsi": "413000003",
+    "name": "MV Iron Clad",
+    "type": "Container Ship",
+    "ownerName": "Henrik Larsen",
+    "owningCompany": "Nordic Shipping Group AS",
+    "owningCountry": "Norway",
+    "speed": 14,
+    "course": 330,
+    "status": "MOVING"
+  },
+  {
+    "mmsi": "514000004",
+    "name": "FV Morning Star",
+    "type": "Trawler",
+    "ownerName": "Ravi Jayawardena",
+    "owningCompany": "Ceylon Deep Sea Pvt Ltd",
+    "owningCountry": "Sri Lanka",
+    "speed": 4,
+    "course": 175,
+    "status": "FISHING"
+  },
+  {
+    "mmsi": "215000005",
+    "name": "MV Blue Marlin",
+    "type": "Tanker",
+    "ownerName": "Ahmed Al-Rashid",
+    "owningCompany": "Gulf Energy Marine LLC",
+    "owningCountry": "UAE",
+    "speed": 10,
+    "course": 90,
+    "status": "MOVING"
+  },
+  {
+    "mmsi": "316000006",
+    "name": "FV Coral Reef",
+    "type": "Longliner",
+    "ownerName": "Takeshi Yamamoto",
+    "owningCompany": "Nippon Ocean Harvest Inc",
+    "owningCountry": "Japan",
+    "speed": 5,
+    "course": 260,
+    "status": "FISHING"
+  },
+  {
+    "mmsi": "417000007",
+    "name": "MV Southern Cross",
+    "type": "General Cargo",
+    "ownerName": "Maria Santos",
+    "owningCompany": "Austral Freight Pty Ltd",
+    "owningCountry": "Australia",
+    "speed": 9,
+    "course": 150,
+    "status": "MOVING"
+  },
+  {
+    "mmsi": "218000008",
+    "name": "FV Neptune's Wrath",
+    "type": "Purse Seiner",
+    "ownerName": "Dimitri Papadopoulos",
+    "owningCompany": "Aegean Fisheries SA",
+    "owningCountry": "Greece",
+    "speed": 7,
+    "course": 45,
+    "status": "FISHING"
+  },
+  {
+    "mmsi": "319000009",
+    "name": "MV Emerald Voyager",
+    "type": "Ro-Ro Cargo",
+    "ownerName": "Oluwaseun Adebayo",
+    "owningCompany": "West Africa Logistics Ltd",
+    "owningCountry": "Nigeria",
+    "speed": 13,
+    "course": 300,
+    "status": "MOVING"
+  },
+  {
+    "mmsi": "220000010",
+    "name": "FV Silver Catch",
+    "type": "Gillnetter",
+    "ownerName": "Park Joon-ho",
+    "owningCompany": "Korea Marine Products Co",
+    "owningCountry": "South Korea",
+    "speed": 3,
+    "course": 120,
+    "status": "FISHING"
+  },
+  {
+    "mmsi": "321000011",
+    "name": "MV Titan Express",
+    "type": "Container Ship",
+    "ownerName": "Klaus Müller",
+    "owningCompany": "Hamburg Sealines GmbH",
+    "owningCountry": "Germany",
+    "speed": 16,
+    "course": 200,
+    "status": "MOVING"
+  },
+  {
+    "mmsi": "422000012",
+    "name": "FV Ocean Harvester",
+    "type": "Bottom Trawler",
+    "ownerName": "Andrei Volkov",
+    "owningCompany": "Kamchatka Deep Sea LLC",
+    "owningCountry": "Russia",
+    "speed": 5,
+    "course": 70,
+    "status": "FISHING"
+  },
+  {
+    "mmsi": "223000013",
+    "name": "MV Golden Anchor",
+    "type": "Chemical Tanker",
+    "ownerName": "Suresh Patel",
+    "owningCompany": "Indian Ocean Carriers Pvt Ltd",
+    "owningCountry": "India",
+    "speed": 11,
+    "course": 350,
+    "status": "MOVING"
+  },
+  {
+    "mmsi": "324000014",
+    "name": "FV Windward",
+    "type": "Pole and Line",
+    "ownerName": "Jean-Pierre Dubois",
+    "owningCompany": "Atlantique Pêche SAS",
+    "owningCountry": "France",
+    "speed": 6,
+    "course": 180,
+    "status": "FISHING"
+  },
+  {
+    "mmsi": "225000015",
+    "name": "MV Arctic Pioneer",
+    "type": "Icebreaker Cargo",
+    "ownerName": "Erik Johansson",
+    "owningCompany": "Scandinavia Arctic Shipping AB",
+    "owningCountry": "Sweden",
+    "speed": 8,
+    "course": 15,
+    "status": "MOVING"
+  }
+]

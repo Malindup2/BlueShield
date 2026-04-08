@@ -4,12 +4,10 @@
  * - Returns { error: string[] | null } for middleware
  */
 
-
 const isObjectId = (v) => typeof v === "string" && /^[a-fA-F0-9]{24}$/.test(v);
 
 const ZONE_STATUS = ["ACTIVE", "DISABLED"];
 const ZONE_TYPES = ["RESTRICTED", "DANGEROUS"];
-
 
 /**
  * Validate longitude/latitude array [lng, lat].
@@ -24,30 +22,33 @@ const isLngLat = (arr) =>
   arr[1] >= -90 &&
   arr[1] <= 90;
 
-
 /**
  * Validate zone creation payload.
+ * Center is no longer required from the frontend.
+ * It will be derived from the linked hazard's report location.
  */
 exports.create = (req) => {
   const errors = [];
   const body = req.body || {};
 
-  if (!body.sourceHazard || !isObjectId(body.sourceHazard)) errors.push("sourceHazard is required (ObjectId)");
-  if (!body.zoneType || !ZONE_TYPES.includes(body.zoneType)) errors.push("zoneType must be RESTRICTED or DANGEROUS");
+  if (!body.sourceHazard || !isObjectId(body.sourceHazard)) {
+    errors.push("sourceHazard is required (ObjectId)");
+  }
+
+  if (!body.zoneType || !ZONE_TYPES.includes(body.zoneType)) {
+    errors.push("zoneType must be RESTRICTED or DANGEROUS");
+  }
 
   if (!body.warningMessage || typeof body.warningMessage !== "string" || !body.warningMessage.trim()) {
     errors.push("warningMessage is required (string)");
   }
 
-  if (!isLngLat(body.center)) errors.push("center must be [lng, lat] numbers");
   if (typeof body.radius !== "number" || body.radius < 10 || body.radius > 50000) {
     errors.push("radius must be a number between 10 and 50000 meters");
   }
 
   return { error: errors.length ? errors : null };
 };
-
-
 
 /**
  * Validate zone list query parameters.
@@ -67,7 +68,6 @@ exports.list = (req) => {
   return { error: errors.length ? errors : null };
 };
 
-
 /**
  * Validate zone id parameter.
  */
@@ -77,9 +77,9 @@ exports.getById = (req) => {
   return { error: errors.length ? errors : null };
 };
 
-
 /**
  * Validate zone update payload.
+ * Center remains optional for backend flexibility.
  */
 exports.update = (req) => {
   const errors = [];
@@ -90,10 +90,15 @@ exports.update = (req) => {
   if (body.status && !ZONE_STATUS.includes(body.status)) errors.push("Invalid status");
 
   if (body.warningMessage != null) {
-    if (typeof body.warningMessage !== "string" || !body.warningMessage.trim()) errors.push("warningMessage must be string");
+    if (typeof body.warningMessage !== "string" || !body.warningMessage.trim()) {
+      errors.push("warningMessage must be string");
+    }
   }
 
-  if (body.center && !isLngLat(body.center)) errors.push("center must be [lng, lat] numbers");
+  if (body.center && !isLngLat(body.center)) {
+    errors.push("center must be [lng, lat] numbers");
+  }
+
   if (body.radius != null && (typeof body.radius !== "number" || body.radius < 10 || body.radius > 50000)) {
     errors.push("radius must be a number between 10 and 50000 meters");
   }

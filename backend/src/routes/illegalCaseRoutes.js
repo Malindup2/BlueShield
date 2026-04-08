@@ -7,6 +7,7 @@ const v = require("../validations/illegalCase.validation");
 const ctrl = require("../controllers/illegalCaseController");
 
 const illegalAdminRoles = ["ILLEGAL_ADMIN", "SYSTEM_ADMIN"];
+const illegalReadRoles = ["OFFICER", ...illegalAdminRoles];
 
 // Dashboard
 router.get("/reports/pending", protect, authorize(...illegalAdminRoles), ctrl.getPendingReports);
@@ -18,8 +19,8 @@ router.get("/officers", protect, authorize(...illegalAdminRoles), ctrl.getOffice
 
 // Case records CRUD
 router.post("/reports/:reportId/review", protect, authorize(...illegalAdminRoles), validate(v.createCase), ctrl.createCase);
-router.get("/", protect, authorize(...illegalAdminRoles), ctrl.listCases);
-router.get("/:caseId", protect, authorize(...illegalAdminRoles), validate(v.caseId), ctrl.getCaseById);
+router.get("/", protect, authorize(...illegalReadRoles), ctrl.listCases);
+router.get("/:caseId", protect, authorize(...illegalReadRoles), validate(v.caseId), ctrl.getCaseById);
 router.patch("/:caseId", protect, authorize(...illegalAdminRoles), validate(v.updateCase), ctrl.updateCase);
 router.delete("/:caseId", protect, authorize(...illegalAdminRoles), validate(v.caseId), ctrl.deleteCase);
 

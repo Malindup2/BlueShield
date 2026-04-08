@@ -28,8 +28,8 @@ const MENU_ITEMS = [
   // HAZARD ADMIN
   { title: "Dashboard", path: "/dashboard/hazard-admin", icon: <LayoutDashboard className="w-5 h-5" />, roles: ["HAZARD_ADMIN"] },
   { title: "Reports", path: "/dashboard/hazard-admin/reports", icon: <FileText className="w-5 h-5" />, roles: ["HAZARD_ADMIN", "SYSTEM_ADMIN"] },
-  { title: "Zones", path: "/dashboard/hazard-admin/zones", icon: <Map className="w-5 h-5" />, roles: ["HAZARD_ADMIN", "SYSTEM_ADMIN"] },
   { title: "Cases", path: "/dashboard/hazard-admin/cases", icon: <Briefcase className="w-5 h-5" />, roles: ["HAZARD_ADMIN", "SYSTEM_ADMIN"] },
+  { title: "Zones", path: "/dashboard/hazard-admin/zones", icon: <Map className="w-5 h-5" />, roles: ["HAZARD_ADMIN", "SYSTEM_ADMIN"] },
 
   // SYSTEM ADMIN
   { title: "System Overview", path: "/dashboard/system-admin", icon: <Settings className="w-5 h-5" />, roles: ["SYSTEM_ADMIN"] },

@@ -9,3 +9,7 @@ yarn-error.log
 PROJECT_DETAILED_OVERVIEW.md
 copilot-instructions.md
 BlueShield-Report-API.postman_collection.json
+package-lock.json
+package.json
+.package-lock.json
+.package.json
