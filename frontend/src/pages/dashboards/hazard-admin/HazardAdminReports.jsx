@@ -20,6 +20,9 @@ import {
   FileArchive,
   FileVideo,
   ExternalLink,
+  Waves,
+  Thermometer,
+  Wind,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
@@ -32,6 +35,7 @@ import {
   getHazardReviewReports,
   getHazardReviewReportById,
   updateHazardReviewReportStatus,
+  getWeatherByLocation,
 } from "../../../services/hazardAdminAPI";
 
 // Fix leaflet default marker icon
@@ -162,6 +166,10 @@ function riskStyle(level = "") {
   }[key] || "bg-slate-50 border-slate-200 text-slate-700";
 }
 
+const NAVY_BUTTON =
+  "bg-[#1e3a8a] text-white hover:bg-[#1d4ed8] shadow-sm";
+const NAVY_RING = "focus:ring-[#1e3a8a]";
+
 export default function HazardAdminReports() {
   const navigate = useNavigate();
 
@@ -169,8 +177,8 @@ export default function HazardAdminReports() {
   const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("ALL");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [reportTypeFilter, setReportTypeFilter] = useState("ALL");
+  const [searchTerm] = useState("");
+  const [reportTypeFilter] = useState("ALL");
 
   const [selectedReport, setSelectedReport] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
@@ -280,6 +288,7 @@ export default function HazardAdminReports() {
 
   const handleCheckWeather = async () => {
     const latLng = getLatLng(selectedReport);
+
     if (!latLng) {
       toast.error("No valid location found for weather check");
       return;
@@ -288,40 +297,16 @@ export default function HazardAdminReports() {
     setWeatherLoading(true);
 
     try {
-      const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${latLng.lat}&longitude=${latLng.lng}&current=temperature_2m,wind_speed_10m&timezone=auto`
-      );
-      const data = await response.json();
-
-      const temperature = data?.current?.temperature_2m ?? null;
-      const windSpeed = data?.current?.wind_speed_10m ?? null;
-
-      let riskLevel = "LOW";
-      let advisory = "Conditions appear stable for general environmental review.";
-
-      if ((windSpeed ?? 0) >= 30) {
-        riskLevel = "HIGH";
-        advisory =
-          "Strong wind conditions detected. Exercise caution when verifying marine hazard conditions.";
-      } else if ((windSpeed ?? 0) >= 18) {
-        riskLevel = "MODERATE";
-        advisory =
-          "Moderate wind conditions detected. Review environmental impact carefully before final status changes.";
-      }
-
-      setWeatherData({
-        fetchedAt: new Date().toISOString(),
-        provider: "Open-Meteo Current Weather",
-        temperature,
-        windSpeed,
-        riskLevel,
-        advisory,
+      const data = await getWeatherByLocation({
+        lat: latLng.lat,
+        lng: latLng.lng,
       });
 
+      setWeatherData(data);
       toast.success("Weather checked successfully");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to fetch weather details");
+      toast.error(error?.response?.data?.message || "Failed to fetch marine conditions");
     } finally {
       setWeatherLoading(false);
     }
@@ -338,23 +323,21 @@ export default function HazardAdminReports() {
   const selectedLatLng = getLatLng(selectedReport);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-950 p-8 rounded-3xl border border-slate-700 shadow-xl">
         <div className="absolute -top-10 -right-10 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-12 w-56 h-56 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-400/30 bg-cyan-500/10 text-cyan-300 text-[10px] font-black uppercase tracking-widest mb-3">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-400/30 bg-cyan-500/10 text-cyan-300 text-[10px] font-bold uppercase tracking-[0.16em] mb-3">
             <ShieldAlert className="w-3 h-3" />
             Hazard Review Desk
           </span>
-          <h1 className="text-3xl font-black text-white tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
             Hazard & Environmental Reports
           </h1>
-          <p className="text-slate-300 mt-2 text-sm max-w-3xl">
-            Review incoming marine hazard and environmental reports, verify incidents,
-            update report status, inspect attachments, and move verified reports into
-            operational hazard handling.
+          <p className="text-slate-200 mt-2 max-w-3xl">
+            Review incoming marine hazard and environmental reports, verify incidents, and move approved reports into hazard operations.
           </p>
         </div>
       </div>
@@ -364,95 +347,76 @@ export default function HazardAdminReports() {
           {
             label: "Total Reports",
             value: stats.total,
-            icon: <FileText className="w-5 h-5 text-slate-700" />,
-            box: "bg-white border-slate-200",
-            iconBox: "bg-slate-100",
+            icon: <FileText className="w-5 h-5 text-blue-500" />,
+            iconBox: "bg-blue-50",
           },
           {
             label: "Pending",
             value: stats.pending,
-            icon: <Clock3 className="w-5 h-5 text-slate-700" />,
-            box: "bg-white border-slate-200",
-            iconBox: "bg-slate-100",
+            icon: <Clock3 className="w-5 h-5 text-amber-500" />,
+            iconBox: "bg-amber-50",
           },
           {
             label: "Under Review",
             value: stats.underReview,
-            icon: <Search className="w-5 h-5 text-blue-700" />,
-            box: "bg-white border-blue-100",
+            icon: <Search className="w-5 h-5 text-[#1e3a8a]" />,
             iconBox: "bg-blue-50",
           },
           {
             label: "Verified",
             value: stats.verified,
-            icon: <CheckCircle2 className="w-5 h-5 text-emerald-700" />,
-            box: "bg-white border-emerald-100",
+            icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
             iconBox: "bg-emerald-50",
           },
           {
             label: "Rejected",
             value: stats.rejected,
-            icon: <XCircle className="w-5 h-5 text-rose-700" />,
-            box: "bg-white border-rose-100",
+            icon: <XCircle className="w-5 h-5 text-rose-500" />,
             iconBox: "bg-rose-50",
           },
         ].map((card) => (
           <div
             key={card.label}
-            className={`rounded-2xl border ${card.box} p-5 shadow-sm flex items-center justify-between`}
+            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between transition hover:shadow-md hover:-translate-y-0.5"
           >
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 {card.label}
               </p>
-              <p className="mt-2 text-3xl font-black tracking-tight text-slate-900">
+              <p className="text-3xl font-black text-slate-800">
                 {card.value}
               </p>
             </div>
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${card.iconBox}`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${card.iconBox}`}>
               {card.icon}
             </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
-                activeTab === tab
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {tab === "UNDER_REVIEW" ? "Under Review" : tab.replace("_", " ")}
-            </button>
-          ))}
-        </div>
+      <div className="bg-white border border-slate-200 rounded-2xl px-5 pt-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-6 border-b border-slate-200">
+          {STATUS_TABS.map((tab) => {
+            const isActive = activeTab === tab;
+            const label = tab === "UNDER_REVIEW" ? "Under Review" : tab.replace("_", " ");
 
-        <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by code, title, location, or reporter..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <select
-            value={reportTypeFilter}
-            onChange={(e) => setReportTypeFilter(e.target.value)}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="ALL">All Types</option>
-            <option value="HAZARD">Hazard</option>
-            <option value="ENVIRONMENTAL">Environmental</option>
-          </select>
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`relative pb-3 text-sm font-medium transition ${
+                  isActive
+                    ? "text-[#1e3a8a]"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {label}
+                {isActive && (
+                  <span className="absolute left-0 bottom-0 h-0.5 w-full rounded-full bg-[#1e3a8a]" />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -460,9 +424,9 @@ export default function HazardAdminReports() {
         <div className="grid grid-cols-1 gap-4">{SkeletonCard({ count: 4 })}</div>
       ) : filteredReports.length === 0 ? (
         <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
-          <p className="text-lg font-black text-slate-800">No reports found</p>
+          <p className="text-lg font-bold text-slate-800">No reports found</p>
           <p className="text-sm text-slate-500 mt-2">
-            Try changing the status tab or search term.
+            Try changing the status tab.
           </p>
         </div>
       ) : (
@@ -479,7 +443,7 @@ export default function HazardAdminReports() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-3">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${typeStyle(
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${typeStyle(
                           report.reportType
                         )}`}
                       >
@@ -491,12 +455,12 @@ export default function HazardAdminReports() {
                         {report.reportType}
                       </span>
 
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black tracking-widest uppercase">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold tracking-widest uppercase">
                         {reportCodeFromId(report._id)}
                       </span>
 
                       <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${severityStyle(
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${severityStyle(
                           report.severity
                         )}`}
                       >
@@ -504,7 +468,7 @@ export default function HazardAdminReports() {
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">
                       {report.title}
                     </h3>
 
@@ -528,7 +492,7 @@ export default function HazardAdminReports() {
 
                   <div className="flex flex-col sm:flex-row xl:flex-col items-start sm:items-center xl:items-end gap-3">
                     <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${statusStyle(
+                      className={`inline-flex items-center px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${statusStyle(
                         report.status
                       )}`}
                     >
@@ -538,18 +502,18 @@ export default function HazardAdminReports() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => openViewModal(report._id)}
-                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition"
+                        className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition"
                         title="View report"
                       >
-                        <Eye className="w-5 h-5" />
+                        <Eye className="w-4 h-4" />
                       </button>
 
                       <button
                         disabled={!canCreate}
                         onClick={() => goToCreateCase(report)}
-                        className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition ${
+                        className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
                           canCreate
-                            ? "bg-amber-500 text-white hover:bg-amber-600 shadow-sm"
+                            ? `${NAVY_BUTTON}`
                             : "bg-slate-200 text-slate-500 cursor-not-allowed"
                         }`}
                       >
@@ -570,7 +534,7 @@ export default function HazardAdminReports() {
           <div className="relative w-full max-w-7xl h-[86vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
                   Hazard Report Review
                 </p>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-1">
@@ -580,9 +544,9 @@ export default function HazardAdminReports() {
 
               <button
                 onClick={closeViewModal}
-                className="w-11 h-11 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition"
+                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -597,7 +561,7 @@ export default function HazardAdminReports() {
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                       <div className="flex flex-wrap items-center gap-2 mb-4">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${typeStyle(
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${typeStyle(
                             selectedReport.reportType
                           )}`}
                         >
@@ -610,7 +574,7 @@ export default function HazardAdminReports() {
                         </span>
 
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${severityStyle(
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${severityStyle(
                             selectedReport.severity
                           )}`}
                         >
@@ -618,7 +582,7 @@ export default function HazardAdminReports() {
                         </span>
 
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${statusStyle(
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${statusStyle(
                             selectedReport.status
                           )}`}
                         >
@@ -628,7 +592,7 @@ export default function HazardAdminReports() {
                         </span>
                       </div>
 
-                      <h3 className="text-lg font-black text-slate-900 mb-4">Report Summary</h3>
+                      <h3 className="text-lg font-bold text-slate-900 mb-4">Report Summary</h3>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
@@ -685,7 +649,7 @@ export default function HazardAdminReports() {
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <MapPin className="w-5 h-5 text-blue-600" />
-                        <h3 className="text-lg font-black text-slate-900">Location</h3>
+                        <h3 className="text-lg font-bold text-slate-900">Location</h3>
                       </div>
 
                       {selectedLatLng ? (
@@ -724,7 +688,7 @@ export default function HazardAdminReports() {
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <FileText className="w-5 h-5 text-slate-700" />
-                        <h3 className="text-lg font-black text-slate-900">Attachments</h3>
+                        <h3 className="text-lg font-bold text-slate-900">Attachments</h3>
                       </div>
 
                       {selectedReport.attachments?.length ? (
@@ -815,22 +779,21 @@ export default function HazardAdminReports() {
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                       <div className="flex items-center gap-2 mb-4">
                         <CloudSun className="w-5 h-5 text-cyan-600" />
-                        <h3 className="text-lg font-black text-slate-900">Weather Verification</h3>
+                        <h3 className="text-lg font-bold text-slate-900">Weather Verification</h3>
                       </div>
 
                       <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4">
                         <p className="text-sm font-semibold text-slate-700">
-                          Check current weather conditions for this report location.
+                          Check current marine conditions for this report location.
                         </p>
                         <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-                          This helps you verify environmental conditions before changing the report
-                          status.
+                          Risk level and advisory are calculated by the backend and returned directly from the weather-check endpoint.
                         </p>
 
                         <button
                           onClick={handleCheckWeather}
                           disabled={weatherLoading}
-                          className="mt-4 inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-cyan-600 text-white text-sm font-bold hover:bg-cyan-700 transition disabled:opacity-60"
+                          className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 text-white text-sm font-semibold hover:bg-cyan-700 transition disabled:opacity-60"
                         >
                           {weatherLoading ? (
                             <>
@@ -848,50 +811,76 @@ export default function HazardAdminReports() {
 
                       {weatherData && (
                         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-xs font-bold text-slate-400">Temperature</p>
-                              <p className="font-bold text-slate-900">
-                                {weatherData.temperature ?? "-"} °C
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-xs font-bold text-slate-400 flex items-center gap-2">
+                                <Waves className="w-4 h-4" />
+                                Wave Height
+                              </p>
+                              <p className="font-bold text-slate-900 mt-1">
+                                {weatherData.waveHeight ?? "-"} m
                               </p>
                             </div>
 
-                            <div>
-                              <p className="text-xs font-bold text-slate-400">Wind Speed</p>
-                              <p className="font-bold text-slate-900">
-                                {weatherData.windSpeed ?? "-"} km/h
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-xs font-bold text-slate-400 flex items-center gap-2">
+                                <Wind className="w-4 h-4" />
+                                Wind Wave Height
+                              </p>
+                              <p className="font-bold text-slate-900 mt-1">
+                                {weatherData.windWaveHeight ?? "-"} m
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
+                              <p className="text-xs font-bold text-slate-400 flex items-center gap-2">
+                                <Thermometer className="w-4 h-4" />
+                                Sea Temperature
+                              </p>
+                              <p className="font-bold text-slate-900 mt-1">
+                                {weatherData.seaTemperature ?? "-"} °C
                               </p>
                             </div>
                           </div>
 
-                          <div
-                            className={`rounded-xl p-3 border ${riskStyle(weatherData.riskLevel)}`}
-                          >
+                          <div className={`rounded-xl p-3 border ${riskStyle(weatherData.riskLevel)}`}>
                             <p className="text-xs font-bold text-slate-400">Risk Level</p>
-                            <p className="font-black text-lg">{weatherData.riskLevel}</p>
+                            <p className="font-black text-lg">{weatherData.riskLevel || "-"}</p>
                           </div>
 
                           <div className="rounded-xl p-3 bg-blue-50 border border-blue-100">
                             <p className="text-xs font-bold text-slate-400">Advisory</p>
-                            <p className="text-sm text-slate-700">{weatherData.advisory}</p>
+                            <p className="text-sm text-slate-700">
+                              {weatherData.advisory || "No advisory available"}
+                            </p>
                           </div>
 
-                          <p className="text-xs text-slate-500">
-                            Fetched at:{" "}
-                            {format(new Date(weatherData.fetchedAt), "MMM d, yyyy • hh:mm a")}
-                          </p>
+                          <div className="text-xs text-slate-500 space-y-1">
+                            <p>
+                              Provider: {weatherData.provider || "-"}
+                            </p>
+                            <p>
+                              Marine Timestamp: {weatherData.timestamp || "-"}
+                            </p>
+                            <p>
+                              Fetched at:{" "}
+                              {weatherData.fetchedAt
+                                ? format(new Date(weatherData.fetchedAt), "MMM d, yyyy • hh:mm a")
+                                : "-"}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
 
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                      <h3 className="text-lg font-black text-slate-900 mb-4">Update Report Status</h3>
+                      <h3 className="text-lg font-bold text-slate-900 mb-4">Update Report Status</h3>
 
                       <div className="space-y-4">
                         <select
                           value={statusDraft}
                           onChange={(e) => setStatusDraft(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className={`w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 ${NAVY_RING}`}
                         >
                           <option value="PENDING">Pending</option>
                           <option value="UNDER_REVIEW">Under Review</option>
@@ -902,7 +891,7 @@ export default function HazardAdminReports() {
                         <button
                           onClick={handleStatusUpdate}
                           disabled={savingStatus}
-                          className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-4 py-3 rounded-xl text-sm font-bold hover:from-cyan-700 hover:to-blue-700 transition disabled:opacity-60"
+                          className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition disabled:opacity-60 ${NAVY_BUTTON}`}
                         >
                           {savingStatus ? (
                             <>
@@ -917,7 +906,7 @@ export default function HazardAdminReports() {
                     </div>
 
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                      <h3 className="text-lg font-black text-slate-900 mb-3">Create Hazard Case</h3>
+                      <h3 className="text-lg font-bold text-slate-900 mb-3">Create Hazard Case</h3>
                       <p className="text-sm text-slate-500 leading-relaxed">
                         Open a dedicated creation page to convert this verified report into a
                         hazard case for operational handling.
@@ -926,9 +915,9 @@ export default function HazardAdminReports() {
                       <button
                         onClick={() => goToCreateCase(selectedReport)}
                         disabled={selectedReport.status !== "VERIFIED"}
-                        className={`mt-5 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition ${
+                        className={`mt-5 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
                           selectedReport.status === "VERIFIED"
-                            ? "bg-amber-500 text-white hover:bg-amber-600"
+                            ? `${NAVY_BUTTON}`
                             : "bg-slate-200 text-slate-500 cursor-not-allowed"
                         }`}
                       >

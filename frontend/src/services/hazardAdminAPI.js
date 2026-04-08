@@ -49,6 +49,8 @@ export const resolveHazardCase = async (hazardId, payload) => {
   return data;
 };
 
+
+
 export const getHazardWeatherSnapshot = async (hazardId) => {
   const { data } = await api.get(`/hazards/${hazardId}/weather`);
   return data;
@@ -91,3 +93,5 @@ export const getHazardDashboardSummary = async () => {
   const { data } = await api.get("/hazards/dashboard-summary");
   return data;
 };
+
+
