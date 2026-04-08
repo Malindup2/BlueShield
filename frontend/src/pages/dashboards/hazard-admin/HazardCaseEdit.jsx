@@ -118,6 +118,36 @@ export default function HazardCaseEdit() {
   );
 
   const handleSave = async () => {
+    if (!form.hazardCategory) {
+      toast.error("Hazard category is required");
+      return;
+    }
+
+    if (!HAZARD_CATEGORIES.includes(form.hazardCategory)) {
+      toast.error("Invalid hazard category");
+      return;
+    }
+
+    if (!form.severity) {
+      toast.error("Severity is required");
+      return;
+    }
+
+    if (!SEVERITIES.includes(form.severity)) {
+      toast.error("Invalid severity");
+      return;
+    }
+
+    if (!form.handlingStatus) {
+      toast.error("Handling status is required");
+      return;
+    }
+
+    if (!HANDLING_STATUSES.includes(form.handlingStatus)) {
+      toast.error("Invalid handling status");
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -337,9 +367,10 @@ export default function HazardCaseEdit() {
               <div className="space-y-5">
                 <div>
                   <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                    Hazard Category
+                    Hazard Category <span className="text-red-500">*</span>
                   </label>
                   <select
+                    required
                     value={form.hazardCategory}
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, hazardCategory: e.target.value }))
@@ -356,9 +387,10 @@ export default function HazardCaseEdit() {
 
                 <div>
                   <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                    Severity
+                    Severity <span className="text-red-500">*</span>
                   </label>
                   <select
+                    required
                     value={form.severity}
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, severity: e.target.value }))
@@ -375,9 +407,10 @@ export default function HazardCaseEdit() {
 
                 <div>
                   <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                    Handling Status
+                    Handling Status <span className="text-red-500">*</span>
                   </label>
                   <select
+                    required
                     value={form.handlingStatus}
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, handlingStatus: e.target.value }))

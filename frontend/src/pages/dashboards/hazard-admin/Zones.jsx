@@ -25,6 +25,9 @@ import toast from "react-hot-toast";
 
 import { getZones, updateZone } from "../../../services/hazardAdminAPI";
 
+const ZONE_TYPES = ["RESTRICTED", "DANGEROUS"];
+const ZONE_STATUSES = ["ACTIVE", "DISABLED"];
+
 function zoneTypeStyle(type) {
   return type === "DANGEROUS"
     ? "bg-red-100 text-red-700 border-red-200"
@@ -221,12 +224,55 @@ export default function Zones() {
   const handleSaveEdit = async () => {
     if (!editZone?._id) return;
 
+    const trimmedMessage = (editZone.warningMessage || "").trim();
+    const radiusNumber = Number(editZone.radius);
+
+    if (!editZone.zoneType) {
+      toast.error("Zone type is required");
+      return;
+    }
+
+    if (!ZONE_TYPES.includes(editZone.zoneType)) {
+      toast.error("Invalid zone type");
+      return;
+    }
+
+    if (!trimmedMessage) {
+      toast.error("Warning message is required");
+      return;
+    }
+
+    if (trimmedMessage.length > 400) {
+      toast.error("Warning message cannot exceed 400 characters");
+      return;
+    }
+
+    if (!editZone.radius && editZone.radius !== 0) {
+      toast.error("Radius is required");
+      return;
+    }
+
+    if (Number.isNaN(radiusNumber)) {
+      toast.error("Radius must be a valid number");
+      return;
+    }
+
+    if (radiusNumber < 10 || radiusNumber > 50000) {
+      toast.error("Radius must be between 10 and 50000 meters");
+      return;
+    }
+
+    if (editZone.status && !ZONE_STATUSES.includes(editZone.status)) {
+      toast.error("Invalid zone status");
+      return;
+    }
+
     setSavingEdit(true);
     try {
       await updateZone(editZone._id, {
         zoneType: editZone.zoneType,
-        warningMessage: editZone.warningMessage,
-        radius: Number(editZone.radius),
+        warningMessage: trimmedMessage,
+        radius: radiusNumber,
         expiresAt: editZone.expiresAt || null,
         status: editZone.status,
       });
@@ -740,9 +786,10 @@ export default function Zones() {
             <div className="space-y-5 p-6">
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Zone Type
+                  Zone Type <span className="text-red-500">*</span>
                 </label>
                 <select
+                  required
                   value={editZone.zoneType}
                   onChange={(e) =>
                     setEditZone((prev) => ({ ...prev, zoneType: e.target.value }))
@@ -756,9 +803,10 @@ export default function Zones() {
 
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Warning Message
+                  Warning Message <span className="text-red-500">*</span>
                 </label>
                 <textarea
+                  required
                   rows={4}
                   value={editZone.warningMessage}
                   onChange={(e) =>
@@ -771,9 +819,10 @@ export default function Zones() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                    Radius (meters)
+                    Radius (meters) <span className="text-red-500">*</span>
                   </label>
                   <input
+                    required
                     type="number"
                     min="10"
                     max="50000"

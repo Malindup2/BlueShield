@@ -91,6 +91,26 @@ export default function HazardCreateCase() {
       return;
     }
 
+    if (!form.hazardCategory) {
+      toast.error("Hazard category is required");
+      return;
+    }
+
+    if (!HAZARD_CATEGORIES.includes(form.hazardCategory)) {
+      toast.error("Invalid hazard category");
+      return;
+    }
+
+    if (!form.severity) {
+      toast.error("Hazard severity is required");
+      return;
+    }
+
+    if (!SEVERITIES.includes(form.severity)) {
+      toast.error("Invalid hazard severity");
+      return;
+    }
+
     setCreating(true);
     try {
       await createHazardFromReport(report._id, form);
@@ -168,7 +188,6 @@ export default function HazardCreateCase() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[300px_minmax(0,1fr)]">
-          {/* Left side */}
           <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-5 md:border-b-0 md:border-r">
             <div className="mb-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
@@ -252,7 +271,6 @@ export default function HazardCreateCase() {
             </div>
           </div>
 
-          {/* Right side */}
           <div className="px-6 py-5 md:pl-6 md:pr-8">
             <div className="mb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
@@ -267,9 +285,10 @@ export default function HazardCreateCase() {
               <div>
                 <label className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                   <FolderPlus className="h-3.5 w-3.5" />
-                  Hazard Category
+                  Hazard Category <span className="text-red-500">*</span>
                 </label>
                 <select
+                  required
                   value={form.hazardCategory}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, hazardCategory: e.target.value }))
@@ -287,9 +306,10 @@ export default function HazardCreateCase() {
               <div>
                 <label className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  Hazard Severity
+                  Hazard Severity <span className="text-red-500">*</span>
                 </label>
                 <select
+                  required
                   value={form.severity}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, severity: e.target.value }))

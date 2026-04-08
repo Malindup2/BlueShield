@@ -29,13 +29,14 @@ import {
   getZones,
 } from "../../../services/hazardAdminAPI";
 
-// leaflet marker fix
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
+
+const ZONE_TYPES = ["RESTRICTED", "DANGEROUS"];
 
 function handlingStatusStyle(status) {
   return {
@@ -174,8 +175,41 @@ export default function HazardCaseDetails() {
   const handleCreateZone = async () => {
     if (!hazard?._id) return;
 
-    if (!zoneForm.warningMessage.trim()) {
+    const trimmedMessage = zoneForm.warningMessage.trim();
+    const radiusNumber = Number(zoneForm.radius);
+
+    if (!zoneForm.zoneType) {
+      toast.error("Zone type is required");
+      return;
+    }
+
+    if (!ZONE_TYPES.includes(zoneForm.zoneType)) {
+      toast.error("Invalid zone type");
+      return;
+    }
+
+    if (!trimmedMessage) {
       toast.error("Warning message is required");
+      return;
+    }
+
+    if (trimmedMessage.length > 400) {
+      toast.error("Warning message cannot exceed 400 characters");
+      return;
+    }
+
+    if (!zoneForm.radius && zoneForm.radius !== 0) {
+      toast.error("Radius is required");
+      return;
+    }
+
+    if (Number.isNaN(radiusNumber)) {
+      toast.error("Radius must be a valid number");
+      return;
+    }
+
+    if (radiusNumber < 10 || radiusNumber > 50000) {
+      toast.error("Radius must be between 10 and 50000 meters");
       return;
     }
 
@@ -184,8 +218,8 @@ export default function HazardCaseDetails() {
       const created = await createZone({
         sourceHazard: hazard._id,
         zoneType: zoneForm.zoneType,
-        warningMessage: zoneForm.warningMessage.trim(),
-        radius: Number(zoneForm.radius),
+        warningMessage: trimmedMessage,
+        radius: radiusNumber,
         expiresAt: zoneForm.expiresAt || null,
       });
 
@@ -238,8 +272,6 @@ export default function HazardCaseDetails() {
 
   return (
     <div className="space-y-8">
-      
-
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={() => navigate("/dashboard/hazard-admin/cases")}
@@ -703,9 +735,10 @@ export default function HazardCaseDetails() {
 
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                      Zone Type
+                      Zone Type <span className="text-red-500">*</span>
                     </label>
                     <select
+                      required
                       value={zoneForm.zoneType}
                       onChange={(e) =>
                         setZoneForm((prev) => ({ ...prev, zoneType: e.target.value }))
@@ -719,9 +752,10 @@ export default function HazardCaseDetails() {
 
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                      Warning Message
+                      Warning Message <span className="text-red-500">*</span>
                     </label>
                     <textarea
+                      required
                       rows={4}
                       value={zoneForm.warningMessage}
                       onChange={(e) =>
@@ -735,9 +769,10 @@ export default function HazardCaseDetails() {
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                       <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                        Radius (meters)
+                        Radius (meters) <span className="text-red-500">*</span>
                       </label>
                       <input
+                        required
                         type="number"
                         min="10"
                         max="50000"
