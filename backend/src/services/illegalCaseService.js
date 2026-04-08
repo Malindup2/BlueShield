@@ -6,16 +6,16 @@ const Enforcement = require("../models/Enforcement");
 
 const VESSEL_API_URLS = {
   LOW: "https://jsonkeeper.com/b/1EMJY",
-  MEDIUM: "https://blueshield-vessels.free.beeceptor.com/vessel/medium",
-  HIGH: "https://blueshield-vessels.free.beeceptor.com/vessel/high",
+  MEDIUM: "https://blueshield-vessels1.free.beeceptor.com/vessel/medium",
+  HIGH: "https://blueshield-vessels1.free.beeceptor.com/vessel/high",
   CRITICAL: "https://blueshield-vessels.free.beeceptor.com/vessel/critical",
 };
 
 const FALLBACK_DATA = {
-  LOW: { imo: "IMO1111111", vesselType: "Small Fishing Boat", registeredOwner: "Coastal Fishermen Co", riskCategory: "low", previousViolations: 0 },
-  MEDIUM: { imo: "IMO2222222", vesselType: "Longliner", registeredOwner: "Blue Ocean Pvt Ltd", riskCategory: "medium", previousViolations: 2 },
-  HIGH: { imo: "IMO3333333", vesselType: "Bottom Trawler", registeredOwner: "Ocean Harvest Ltd", riskCategory: "high", previousViolations: 4 },
-  CRITICAL: { imo: "IMO4444444", vesselType: "Industrial Trawler", registeredOwner: "Deep Sea Exploiters Corp", riskCategory: "critical", previousViolations: 8 },
+  LOW: { imo: "IMO2219835", vesselType: "Small Fishing Boat", registeredOwner: "Coastal Fishermen Co", riskCategory: "low", previousViolations: 0 },
+  MEDIUM: { imo: "IMO2437852", vesselType: "Longliner", registeredOwner: "Blue Ocean Pvt Ltd", riskCategory: "medium", previousViolations: 2 },
+  HIGH: { imo: "IMO3218739", vesselType: "Bottom Trawler", registeredOwner: "Ocean Harvest Ltd", riskCategory: "high", previousViolations: 4 },
+  CRITICAL: { imo: "IMO3317862", vesselType: "Industrial Trawler", registeredOwner: "Deep Sea Exploiters Corp", riskCategory: "critical", previousViolations: 8 },
 };
 
 
