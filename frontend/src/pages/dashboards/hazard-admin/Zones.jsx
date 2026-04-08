@@ -16,6 +16,9 @@ import {
   Pencil,
   X,
   Save,
+  MapPinned,
+  ShieldCheck,
+  FileWarning,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
@@ -61,6 +64,24 @@ function getZoneColors(type) {
     hotspot: "#f3e8ff",
   };
 }
+
+const ICON_THEMES = {
+  total: {
+    wrap: "bg-blue-50 text-blue-500",
+  },
+  active: {
+    wrap: "bg-violet-50 text-violet-500",
+  },
+  disabled: {
+    wrap: "bg-rose-50 text-rose-500",
+  },
+  dangerous: {
+    wrap: "bg-amber-50 text-amber-500",
+  },
+  restricted: {
+    wrap: "bg-emerald-50 text-emerald-500",
+  },
+};
 
 export default function Zones() {
   const [zones, setZones] = useState([]);
@@ -121,6 +142,49 @@ export default function Zones() {
       restricted: zones.filter((z) => z.zoneType === "RESTRICTED").length,
     };
   }, [zones]);
+
+  const statCards = [
+    {
+      key: "total",
+      label: "Total Zones",
+      value: stats.total,
+      sub: "All active and disabled zones",
+      icon: FileWarning,
+      valueClass: "text-slate-800",
+    },
+    {
+      key: "active",
+      label: "Active Zones",
+      value: stats.active,
+      sub: "Currently enforced safety areas",
+      icon: MapPinned,
+      valueClass: "text-slate-800",
+    },
+    {
+      key: "disabled",
+      label: "Disabled Zones",
+      value: stats.disabled,
+      sub: "Inactive zone boundaries",
+      icon: ShieldAlert,
+      valueClass: "text-slate-800",
+    },
+    {
+      key: "dangerous",
+      label: "Dangerous Zones",
+      value: stats.dangerous,
+      sub: "High-risk restricted regions",
+      icon: ShieldCheck,
+      valueClass: "text-slate-800",
+    },
+    {
+      key: "restricted",
+      label: "Restricted Zones",
+      value: stats.restricted,
+      sub: "Controlled maritime areas",
+      icon: Map,
+      valueClass: "text-slate-800",
+    },
+  ];
 
   const openView = (zone) => {
     setSelectedZone(zone);
@@ -201,26 +265,34 @@ export default function Zones() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        {[
-          { label: "Total Zones", value: stats.total },
-          { label: "Active", value: stats.active },
-          { label: "Disabled", value: stats.disabled },
-          { label: "Dangerous", value: stats.dangerous },
-          { label: "Restricted", value: stats.restricted },
-        ].map((card) => (
-          <div
-            key={card.label}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-          >
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-              {card.label}
-            </p>
-            <p className="mt-2 text-3xl font-black tracking-tight text-slate-900">
-              {card.value}
-            </p>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-5">
+        {statCards.map((card) => {
+          const Icon = card.icon;
+          const theme = ICON_THEMES[card.key];
+
+          return (
+            <div
+              key={card.label}
+              className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between transition hover:shadow-md hover:-translate-y-0.5"
+            >
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  {card.label}
+                </p>
+                <h3 className={`text-3xl font-black ${card.valueClass}`}>
+                  {loading ? "--" : card.value}
+                </h3>
+                <p className="text-xs text-slate-500">{card.sub}</p>
+              </div>
+
+              <div
+                className={`w-12 h-12 rounded-full flex items-center justify-center ${theme.wrap}`}
+              >
+                <Icon className="w-6 h-6" />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -409,7 +481,7 @@ export default function Zones() {
               scrollWheelZoom
             >
               <TileLayer
-                attribution='&copy; OpenStreetMap contributors'
+                attribution="&copy; OpenStreetMap contributors"
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
@@ -520,6 +592,7 @@ export default function Zones() {
                       <CircleMarker
                         center={latlng}
                         radius={18}
+                        interactive={false}
                         pathOptions={{
                           color: "#ffffff",
                           weight: 2,
@@ -531,6 +604,7 @@ export default function Zones() {
                       <CircleMarker
                         center={latlng}
                         radius={8}
+                        interactive={false}
                         pathOptions={{
                           color: "#ffffff",
                           weight: 2,

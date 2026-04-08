@@ -190,27 +190,6 @@ export default function HazardCaseEdit() {
 
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 p-8 shadow-xl">
-        <div className="absolute -top-12 -right-10 h-56 w-56 rounded-full bg-red-500/10 blur-3xl" />
-        <div className="absolute -bottom-10 -left-8 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" />
-
-        <div className="relative z-10">
-          <span className="inline-flex items-center gap-2 rounded-full border border-red-400/20 bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-red-300">
-            <ShieldAlert className="h-3 w-3" />
-            Edit Hazard Case
-          </span>
-
-          <h1 className="mt-4 text-3xl font-black tracking-tight text-white">
-            {hazard.caseId}
-          </h1>
-
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
-            Update the hazard case configuration, handling status, and zone requirement.
-            Weather verification is available only for cases categorized as WEATHER.
-          </p>
-        </div>
-      </div>
-
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={() => navigate(`/dashboard/hazard-admin/cases/${id}`)}
@@ -219,90 +198,13 @@ export default function HazardCaseEdit() {
           <ArrowLeft className="h-4 w-4" />
           Back to Details
         </button>
-
-        <span
-          className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${categoryStyle(
-            form.hazardCategory
-          )}`}
-        >
-          {form.hazardCategory}
-        </span>
-
-        <span
-          className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${severityStyle(
-            form.severity
-          )}`}
-        >
-          {form.severity}
-        </span>
-
-        <span
-          className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${handlingStatusStyle(
-            form.handlingStatus
-          )}`}
-        >
-          {form.handlingStatus.replaceAll("_", " ")}
-        </span>
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
         <div className="space-y-6 xl:col-span-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-black text-slate-900">Linked Report Summary</h2>
-
-            <div className="mt-5 grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
-              <div>
-                <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Report Code
-                </p>
-                <p className="font-semibold text-slate-800">
-                  {reportCodeFromId(hazard?.baseReport?._id || "")}
-                </p>
-              </div>
-
-              <div>
-                <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Report Title
-                </p>
-                <p className="font-semibold text-slate-800">
-                  {hazard?.baseReport?.title || "Untitled report"}
-                </p>
-              </div>
-
-              <div>
-                <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Created Date
-                </p>
-                <p className="font-semibold text-slate-800">
-                  {hazard?.baseReport?.createdAt
-                    ? format(new Date(hazard.baseReport.createdAt), "MMM d, yyyy • hh:mm a")
-                    : "N/A"}
-                </p>
-              </div>
-
-              <div>
-                <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Address
-                </p>
-                <p className="font-semibold text-slate-800">
-                  {hazard?.baseReport?.location?.address || "Address unavailable"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Description
-              </p>
-              <p className="leading-relaxed text-slate-700 whitespace-pre-wrap">
-                {hazard?.baseReport?.description || "No description available"}
-              </p>
-            </div>
-          </div>
-
           {isWeatherCase ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="mb-4 flex items-center gap-2">
                 <CloudSun className="h-5 w-5 text-cyan-600" />
                 <h2 className="text-lg font-black text-slate-900">Marine Weather Advisory</h2>
               </div>
@@ -405,7 +307,7 @@ export default function HazardCaseEdit() {
             </div>
           ) : (
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="mb-4 flex items-center gap-2">
                 <CircleOff className="h-5 w-5 text-slate-500" />
                 <h2 className="text-lg font-black text-slate-900">Weather Advisory</h2>
               </div>
@@ -420,126 +322,134 @@ export default function HazardCaseEdit() {
         </div>
 
         <div className="space-y-6 xl:col-span-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-black text-slate-900">Update Hazard Case</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Edit the operational details below and save the updated case configuration.
-            </p>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="bg-gradient-to-r from-slate-900 to-blue-800 px-6 py-5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-200">
+                Hazard Case Management
+              </p>
+              <h2 className="mt-2 text-lg font-black text-white">Update Hazard Case</h2>
+              <p className="mt-1 text-sm text-blue-100">
+                Edit the operational details below and save the updated case configuration.
+              </p>
+            </div>
 
-            <div className="mt-6 space-y-5">
-              <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Hazard Category
-                </label>
-                <select
-                  value={form.hazardCategory}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, hazardCategory: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {HAZARD_CATEGORIES.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Severity
-                </label>
-                <select
-                  value={form.severity}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, severity: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {SEVERITIES.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Handling Status
-                </label>
-                <select
-                  value={form.handlingStatus}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, handlingStatus: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {HANDLING_STATUSES.map((item) => (
-                    <option key={item} value={item}>
-                      {item.replaceAll("_", " ")}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <input
-                  type="checkbox"
-                  checked={form.zoneRequired}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, zoneRequired: e.target.checked }))
-                  }
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
+            <div className="p-6">
+              <div className="space-y-5">
                 <div>
-                  <p className="font-bold text-slate-800">Zone required for this hazard</p>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                    Hazard Category
+                  </label>
+                  <select
+                    value={form.hazardCategory}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, hazardCategory: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {HAZARD_CATEGORIES.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                    Severity
+                  </label>
+                  <select
+                    value={form.severity}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, severity: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {SEVERITIES.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                    Handling Status
+                  </label>
+                  <select
+                    value={form.handlingStatus}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, handlingStatus: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {HANDLING_STATUSES.map((item) => (
+                      <option key={item} value={item}>
+                        {item.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <input
+                    type="checkbox"
+                    checked={form.zoneRequired}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, zoneRequired: e.target.checked }))
+                    }
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <p className="font-bold text-slate-800">Zone required for this hazard</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Enable this if this hazard should require restricted or dangerous zone
+                      management.
+                    </p>
+                  </div>
+                </label>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                    Linked Report
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-800">
+                    {hazard?.baseReport?.title || "Untitled report"}
+                  </p>
                   <p className="mt-1 text-sm text-slate-500">
-                    Enable this if this hazard should require restricted or dangerous zone management.
+                    {hazard?.baseReport?.createdAt
+                      ? format(new Date(hazard.baseReport.createdAt), "MMM d, yyyy • hh:mm a")
+                      : "N/A"}
                   </p>
                 </div>
-              </label>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Linked Report
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-800">
-                  {hazard?.baseReport?.title || "Untitled report"}
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  {hazard?.baseReport?.createdAt
-                    ? format(new Date(hazard.baseReport.createdAt), "MMM d, yyyy • hh:mm a")
-                    : "N/A"}
-                </p>
-              </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => navigate(`/dashboard/hazard-admin/cases/${id}`)}
+                    className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
 
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => navigate(`/dashboard/hazard-admin/cases/${id}`)}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm font-bold text-white hover:from-blue-700 hover:to-cyan-700 disabled:opacity-60"
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Save Changes
-                    </>
-                  )}
-                </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm font-bold text-white hover:from-blue-700 hover:to-cyan-700 disabled:opacity-60"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

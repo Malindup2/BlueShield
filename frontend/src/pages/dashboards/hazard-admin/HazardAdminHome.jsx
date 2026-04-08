@@ -164,22 +164,34 @@ export default function HazardAdminHome() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      
+            {/* Header */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 p-7 shadow-xl">
-        <div className="absolute -top-20 -right-10 h-56 w-56 rounded-full bg-blue-400/20 blur-3xl" />
-        <div className="absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-cyan-300/10 blur-3xl" />
+        {/* Glow Effects */}
+        <div className="absolute -top-20 -right-10 h-56 w-56 rounded-full bg-amber-400/20 blur-3xl" />
+        <div className="absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-blue-300/10 blur-3xl" />
 
-        <div className="relative z-10">
-          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-blue-100">
-            Safety Authority
-          </p>
+        <div className="relative z-10 flex flex-col gap-4">
+          
+          {/* Top badge */}
+          <div className="flex items-center gap-3">
+            <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-400 text-[10px] font-black uppercase tracking-[0.2em]">
+              Safety Authority
+            </div>
+          </div>
 
-          <h2 className="mt-3 text-3xl md:text-4xl font-black tracking-tight text-white">
-            Hazard Center
+          {/* Title */}
+          <h2 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+            Hazard Center:{" "}
+            <span className="text-amber-500">
+              {currentRole}
+            </span>
           </h2>
 
-          <p className="mt-2 text-slate-200 max-w-2xl">
-            Monitor hazard reports, active zones, and verified marine safety cases in one command panel.
+          {/* Description */}
+          <p className="text-slate-300 max-w-2xl text-sm md:text-base leading-relaxed">
+            Managing environmental and navigational hazards. Broadcast critical alerts,
+            monitor exclusion zones, and coordinate recovery efforts.
           </p>
         </div>
       </div>

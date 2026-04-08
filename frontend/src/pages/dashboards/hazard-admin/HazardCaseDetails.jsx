@@ -238,26 +238,7 @@ export default function HazardCaseDetails() {
 
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 p-8 shadow-xl">
-        <div className="absolute -top-12 -right-10 h-56 w-56 rounded-full bg-red-500/10 blur-3xl" />
-        <div className="absolute -bottom-10 -left-8 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" />
-
-        <div className="relative z-10">
-          <span className="inline-flex items-center gap-2 rounded-full border border-red-400/20 bg-red-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-red-300">
-            <ShieldAlert className="h-3 w-3" />
-            Hazard Case Details
-          </span>
-
-          <h1 className="mt-4 text-3xl font-black tracking-tight text-white">
-            {hazard.caseId}
-          </h1>
-
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
-            Review the linked report summary, handling details, marine advisory results,
-            and zone management for this hazard case.
-          </p>
-        </div>
-      </div>
+      
 
       <div className="flex flex-wrap items-center gap-3">
         <button

@@ -86,11 +86,11 @@ export default function App() {
             {/* HAZARD ADMIN */}
             <Route path="hazard-admin" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardAdminHome /></ProtectedRoute>} />
             <Route path="hazard-admin/reports" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardAdminReports /></ProtectedRoute>} />
-            <Route path="/dashboard/hazard-admin/reports/:reportId/create-case" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCreateCase /></ProtectedRoute>} />
+            <Route path="hazard-admin/reports/:reportId/create-case" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCreateCase /></ProtectedRoute>} />
             <Route path="hazard-admin/cases" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCases/></ProtectedRoute>} />
-            <Route path="/dashboard/hazard-admin/cases/:id" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCaseDetails/></ProtectedRoute>} />
-            <Route path="/dashboard/hazard-admin/cases/:id/edit" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCaseEdit/></ProtectedRoute>} />
-            <Route path="/dashboard/hazard-admin/zones" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><Zones /></ProtectedRoute>} />
+            <Route path="hazard-admin/cases/:id" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCaseDetails/></ProtectedRoute>} />
+            <Route path="hazard-admin/cases/:id/edit" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><HazardCaseEdit/></ProtectedRoute>} />
+            <Route path="hazard-admin/zones" element={<ProtectedRoute allowedRoles={["HAZARD_ADMIN","SYSTEM_ADMIN"]}><Zones /></ProtectedRoute>} />
             
            
 
