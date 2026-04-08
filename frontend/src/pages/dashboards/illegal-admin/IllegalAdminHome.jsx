@@ -114,16 +114,14 @@ export default function IllegalAdminHome() {
           <div>
             <div className="flex items-center gap-3 mb-5">
               <div className="px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full text-red-400 text-[10px] font-black uppercase tracking-[0.2em]">
-                Enforcement Authority
-              </div>
+Maritime Regulatory Authority              </div>
             </div>
             <h2 className="text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.2]">
-              Case Control: <span className="text-red-500">{currentRole}</span>
+              Case Administration: <span className="text-red-500">{currentRole}</span>
             </h2>
           </div>
           <p className="text-slate-400 text-lg lg:text-xl font-medium max-w-3xl leading-relaxed">
-            Overseeing maritime legal workflows. Review evidence, authorize enforcement actions, and maintain regional jurisdiction logs.
-          </p>
+Managing illegal fishing case reviews, validate evidence, escalate cases to enforcement officers, and maintain accurate jurisdictional records          </p>
         </div>
       </div>
 
