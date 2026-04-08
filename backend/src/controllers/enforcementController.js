@@ -56,7 +56,7 @@ exports.list = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const doc = await enforcementService.getById(req.params.enforcementId);
+    const doc = await enforcementService.getById(req.params.enforcementId, req.user);
     res.json(doc);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
@@ -68,6 +68,7 @@ exports.update = async (req, res) => {
     const updated = await enforcementService.update({
       enforcementId: req.params.enforcementId,
       payload: req.body,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json(updated);
@@ -78,7 +79,11 @@ exports.update = async (req, res) => {
 
 exports.remove = async (req, res) => {
   try {
-    const deleted = await enforcementService.delete({ enforcementId: req.params.enforcementId });
+    const deleted = await enforcementService.delete({
+      enforcementId: req.params.enforcementId,
+      actor: req.user,
+      actorId: req.user._id,
+    });
     res.json({ message: "Deleted", id: deleted._id });
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
@@ -90,6 +95,7 @@ exports.addAction = async (req, res) => {
     const updated = await enforcementService.addAction({
       enforcementId: req.params.enforcementId,
       action: req.body,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json(updated);
@@ -103,6 +109,7 @@ exports.deleteAction = async (req, res) => {
     const updated = await enforcementService.deleteAction({
       enforcementId: req.params.enforcementId,
       actionId: req.params.actionId,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json(updated);
@@ -117,6 +124,7 @@ exports.updateAction = async (req, res) => {
       enforcementId: req.params.enforcementId,
       actionId: req.params.actionId,
       payload: req.body,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json(updated);
@@ -129,7 +137,7 @@ exports.generateRiskScore = async (req, res) => {
   try {
     const geminiService = require("../services/geminiService");
 
-    const enforcement = await enforcementService.getById(req.params.enforcementId);
+    const enforcement = await enforcementService.getById(req.params.enforcementId, req.user);
 
     const illegalCase = await IllegalCase.findById(enforcement.relatedCase._id);
     const report = await Report.findById(illegalCase.baseReport);
@@ -171,6 +179,7 @@ exports.close = async (req, res) => {
       outcome: req.body.outcome,
       penaltyAmount: req.body.penaltyAmount,
       notes: req.body.notes,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json(doc);
@@ -199,7 +208,7 @@ exports.getAssignableOfficers = async (req, res) => {
  */
 exports.getEvidence = async (req, res) => {
   try {
-    const evidence = await enforcementService.getEvidenceByEnforcement(req.params.enforcementId);
+    const evidence = await enforcementService.getEvidenceByEnforcement(req.params.enforcementId, req.user);
     res.json(evidence);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
@@ -226,6 +235,7 @@ exports.addEvidence = async (req, res) => {
       enforcementId: req.params.enforcementId,
       evidenceData,
       attachments,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.status(201).json(evidence);
@@ -255,6 +265,7 @@ exports.updateEvidence = async (req, res) => {
       evidenceId: req.params.evidenceId,
       payload,
       newAttachments,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json(evidence);
@@ -272,6 +283,7 @@ exports.deleteEvidence = async (req, res) => {
     const deleted = await enforcementService.deleteEvidence({
       enforcementId: req.params.enforcementId,
       evidenceId: req.params.evidenceId,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json({ message: "Evidence deleted", id: deleted._id });
@@ -287,7 +299,7 @@ exports.deleteEvidence = async (req, res) => {
  */
 exports.getTeam = async (req, res) => {
   try {
-    const team = await enforcementService.getTeamByEnforcement(req.params.enforcementId);
+    const team = await enforcementService.getTeamByEnforcement(req.params.enforcementId, req.user);
     res.json(team);
   } catch (e) {
     res.status(e.statusCode || 500).json({ message: e.message });
@@ -304,6 +316,7 @@ exports.addTeamMember = async (req, res) => {
     const member = await enforcementService.addTeamMember({
       enforcementId: req.params.enforcementId,
       teamData: req.body,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.status(201).json(member);
@@ -323,6 +336,7 @@ exports.updateTeamMember = async (req, res) => {
       enforcementId: req.params.enforcementId,
       memberId: req.params.memberId,
       payload: req.body,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json(member);
@@ -340,6 +354,7 @@ exports.deleteTeamMember = async (req, res) => {
     const deleted = await enforcementService.deleteTeamMember({
       enforcementId: req.params.enforcementId,
       memberId: req.params.memberId,
+      actor: req.user,
       actorId: req.user._id,
     });
     res.json({ message: "Team member removed", id: deleted._id });

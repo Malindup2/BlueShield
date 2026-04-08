@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getEnforcements, getEnforcementById, getEvidence, getTeam, addAction, closeEnforcement } from "../../../services/enforcementAPI";
-import { FileText, Filter, AlertCircle, CheckCircle, X, Users, Paperclip, ArrowRight, Clock3, Scale, Plus, Lock, RotateCcw, Activity, Sparkles, Gavel, Ship } from "lucide-react";
+import { FileText, Filter, AlertCircle, CheckCircle, X, Users, Paperclip, ArrowRight, Clock3, Scale, Plus, Lock, RotateCcw, Activity, Sparkles, Gavel, Ship, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -26,6 +26,7 @@ export default function OfficerCases() {
   const [closeForm, setCloseForm] = useState({ outcome: "PENDING", penaltyAmount: "", notes: "" });
   const [savingAction, setSavingAction] = useState(false);
   const [closingCase, setClosingCase] = useState(false);
+  const [showCloseConfirmModal, setShowCloseConfirmModal] = useState(false);
 
   useEffect(() => {
     const fetchCases = async () => {
@@ -146,6 +147,7 @@ export default function OfficerCases() {
     setSelectedCase(null);
     setSelectedCaseTeam([]);
     setSelectedCaseEvidence([]);
+    setShowCloseConfirmModal(false);
   };
 
   const handleReviewCase = async (caseId) => {
@@ -196,12 +198,8 @@ export default function OfficerCases() {
     }
   };
 
-  const handleCloseCase = async (event) => {
-    event.preventDefault();
+  const executeCloseCase = async () => {
     if (!selectedCase?._id) return;
-
-    const confirmed = window.confirm("Close this case and mark the enforcement as resolved?");
-    if (!confirmed) return;
 
     setClosingCase(true);
     try {
@@ -217,6 +215,7 @@ export default function OfficerCases() {
 
       const updated = await closeEnforcement(selectedCase._id, payload);
       await loadReviewData(updated._id || selectedCase._id);
+      setShowCloseConfirmModal(false);
       toast.success("Case closed successfully");
     } catch (error) {
       console.error("Failed to close case", error);
@@ -224,6 +223,12 @@ export default function OfficerCases() {
     } finally {
       setClosingCase(false);
     }
+  };
+
+  const handleCloseCase = async (event) => {
+    event.preventDefault();
+    if (!selectedCase?._id) return;
+    setShowCloseConfirmModal(true);
   };
 
   return (
@@ -710,6 +715,44 @@ export default function OfficerCases() {
           </table>
         </div>
       </div>
+
+      {showCloseConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => !closingCase && setShowCloseConfirmModal(false)}
+          />
+
+          <div className="relative w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl border border-slate-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 border border-red-100">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">Confirm Case Closure</h3>
+              <p className="text-slate-500 text-sm mb-8 leading-relaxed">
+                Are you sure you want to close this case and mark it as resolved? This will update linked illegal case and report statuses.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <button
+                  onClick={() => setShowCloseConfirmModal(false)}
+                  disabled={closingCase}
+                  className="py-3 px-4 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition border border-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeCloseCase}
+                  disabled={closingCase}
+                  className="py-3 px-4 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-lg shadow-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {closingCase ? "Closing..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

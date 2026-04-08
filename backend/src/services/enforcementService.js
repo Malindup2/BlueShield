@@ -1,9 +1,20 @@
 const Enforcement = require("../models/Enforcement");
 const IllegalCase = require("../models/IllegalCase");
+const Report = require("../models/Report");
 const Evidence = require("../models/Evidence");
 const TeamMember = require("../models/TeamMember");
 const User = require("../models/User");
 const cloudinary = require("../config/cloudinary");
+
+const assertOfficerOwnership = (enforcement, actor, actorId) => {
+  if (!actor || actor.role !== "OFFICER") return;
+  const ownerId = enforcement.leadOfficer?._id?.toString?.() || enforcement.leadOfficer?.toString?.();
+  if (!ownerId || ownerId !== actorId?.toString()) {
+    const err = new Error("Access Denied: You cannot access a case assigned to another officer");
+    err.statusCode = 403;
+    throw err;
+  }
+};
 
 
 //
@@ -120,7 +131,16 @@ exports.update = async ({ enforcementId, payload, actor, actorId }) => {
   return updated;
 };
 
-exports.delete = async ({ enforcementId }) => {
+exports.delete = async ({ enforcementId, actor, actorId }) => {
+  const enforcement = await Enforcement.findById(enforcementId);
+  if (!enforcement) {
+    const err = new Error("Enforcement not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
+
   const deleted = await Enforcement.findByIdAndDelete(enforcementId);
   if (!deleted) {
     const err = new Error("Enforcement not found");
@@ -130,43 +150,48 @@ exports.delete = async ({ enforcementId }) => {
   return deleted;
 };
 
-exports.addAction = async ({ enforcementId, action, actorId }) => {
-  const updated = await Enforcement.findByIdAndUpdate(
-    enforcementId,
-    { $push: { actions: action }, updatedBy: actorId },
-    { new: true, runValidators: true }
-  );
-
-  if (!updated) {
-    const err = new Error("Enforcement not found");
-    err.statusCode = 404;
-    throw err;
-  }
-  return updated;
-};
-
-exports.deleteAction = async ({ enforcementId, actionId, actorId }) => {
-  const updated = await Enforcement.findByIdAndUpdate(
-    enforcementId,
-    { $pull: { actions: { _id: actionId } }, updatedBy: actorId },
-    { new: true }
-  );
-
-  if (!updated) {
-    const err = new Error("Enforcement not found");
-    err.statusCode = 404;
-    throw err;
-  }
-  return updated;
-};
-
-exports.updateAction = async ({ enforcementId, actionId, payload, actorId }) => {
+exports.addAction = async ({ enforcementId, action, actor, actorId }) => {
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
     const err = new Error("Enforcement not found");
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
+
+  enforcement.actions.push(action);
+  enforcement.updatedBy = actorId;
+  await enforcement.save();
+
+  return enforcement;
+};
+
+exports.deleteAction = async ({ enforcementId, actionId, actor, actorId }) => {
+  const enforcement = await Enforcement.findById(enforcementId);
+  if (!enforcement) {
+    const err = new Error("Enforcement not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
+
+  enforcement.actions.pull({ _id: actionId });
+  enforcement.updatedBy = actorId;
+  await enforcement.save();
+  return enforcement;
+};
+
+exports.updateAction = async ({ enforcementId, actionId, payload, actor, actorId }) => {
+  const enforcement = await Enforcement.findById(enforcementId);
+  if (!enforcement) {
+    const err = new Error("Enforcement not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
 
   const action = enforcement.actions.id(actionId);
   if (!action) {
@@ -218,11 +243,7 @@ exports.closeEnforcement = async ({ enforcementId, outcome, penaltyAmount, notes
   }
 
   // Security Check (IDOR)
-  if (actor && actor.role === "OFFICER" && enforcement.leadOfficer?.toString() !== actorId) {
-    const err = new Error("Access Denied: You cannot close a case assigned to another officer");
-    err.statusCode = 403;
-    throw err;
-  }
+  assertOfficerOwnership(enforcement, actor, actorId);
 
   if (enforcement.status === "CLOSED_RESOLVED") {
     const err = new Error("Enforcement is already closed");
@@ -246,6 +267,21 @@ exports.closeEnforcement = async ({ enforcementId, outcome, penaltyAmount, notes
     { new: true, runValidators: true }
   );
 
+  // Global sync: when enforcement is resolved, mirror status to illegal case + original report.
+  const resolvedCase = await IllegalCase.findByIdAndUpdate(
+    enforcement.relatedCase,
+    { $set: { status: "RESOLVED", isReviewed: true } },
+    { new: true, runValidators: false }
+  );
+
+  if (resolvedCase?.baseReport) {
+    await Report.findByIdAndUpdate(
+      resolvedCase.baseReport,
+      { $set: { status: "RESOLVED" } },
+      { runValidators: false }
+    );
+  }
+
   return updated;
 };
 
@@ -258,7 +294,7 @@ exports.closeEnforcement = async ({ enforcementId, outcome, penaltyAmount, notes
  * @param {Object} params - Contains enforcementId, evidenceData, actorId
  * @returns {Object} Newly created evidence document
  */
-exports.addEvidence = async ({ enforcementId, evidenceData, attachments, actorId }) => {
+exports.addEvidence = async ({ enforcementId, evidenceData, attachments, actor, actorId }) => {
   // Verify enforcement exists
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
@@ -266,6 +302,8 @@ exports.addEvidence = async ({ enforcementId, evidenceData, attachments, actorId
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
 
   // Create new evidence with enforcement reference
   const newEvidence = await Evidence.create({
@@ -287,13 +325,15 @@ exports.addEvidence = async ({ enforcementId, evidenceData, attachments, actorId
  * @param {String} enforcementId - The enforcement ID
  * @returns {Array} Array of evidence documents
  */
-exports.getEvidenceByEnforcement = async (enforcementId) => {
+exports.getEvidenceByEnforcement = async (enforcementId, actor) => {
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
     const err = new Error("Enforcement not found");
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actor?._id);
 
   return Evidence.find({ enforcement: enforcementId })
     .populate("collectedBy", "name email")
@@ -307,7 +347,7 @@ exports.getEvidenceByEnforcement = async (enforcementId) => {
  * @param {Object} params - Contains enforcementId, evidenceId, payload, actorId
  * @returns {Object} Updated evidence document
  */
-exports.updateEvidence = async ({ enforcementId, evidenceId, payload, newAttachments, actorId }) => {
+exports.updateEvidence = async ({ enforcementId, evidenceId, payload, newAttachments, actor, actorId }) => {
   // Verify enforcement exists
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
@@ -315,6 +355,8 @@ exports.updateEvidence = async ({ enforcementId, evidenceId, payload, newAttachm
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
 
   // Find and verify evidence belongs to this enforcement
   const evidence = await Evidence.findOne({ _id: evidenceId, enforcement: enforcementId });
@@ -365,7 +407,7 @@ exports.updateEvidence = async ({ enforcementId, evidenceId, payload, newAttachm
  * @param {Object} params - Contains enforcementId, evidenceId, actorId
  * @returns {Object} Deleted evidence document
  */
-exports.deleteEvidence = async ({ enforcementId, evidenceId, actorId }) => {
+exports.deleteEvidence = async ({ enforcementId, evidenceId, actor, actorId }) => {
   // Verify enforcement exists
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
@@ -373,6 +415,8 @@ exports.deleteEvidence = async ({ enforcementId, evidenceId, actorId }) => {
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
 
   // Find and verify evidence belongs to this enforcement
   const evidence = await Evidence.findOne({ _id: evidenceId, enforcement: enforcementId });
@@ -406,7 +450,7 @@ exports.deleteEvidence = async ({ enforcementId, evidenceId, actorId }) => {
  * @param {Object} params - Contains enforcementId, teamData, actorId
  * @returns {Object} Newly created team member document
  */
-exports.addTeamMember = async ({ enforcementId, teamData, actorId }) => {
+exports.addTeamMember = async ({ enforcementId, teamData, actor, actorId }) => {
   // Verify enforcement exists
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
@@ -414,6 +458,8 @@ exports.addTeamMember = async ({ enforcementId, teamData, actorId }) => {
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
 
   const selectedId = teamData.officerId;
 
@@ -475,13 +521,15 @@ exports.addTeamMember = async ({ enforcementId, teamData, actorId }) => {
  * @param {String} enforcementId - The enforcement ID
  * @returns {Array} Array of team member documents
  */
-exports.getTeamByEnforcement = async (enforcementId) => {
+exports.getTeamByEnforcement = async (enforcementId, actor) => {
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
     const err = new Error("Enforcement not found");
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actor?._id);
 
   const members = await TeamMember.find({ enforcement: enforcementId })
     .populate("officer", "name email role")
@@ -509,7 +557,7 @@ exports.getTeamByEnforcement = async (enforcementId) => {
  * @param {Object} params - Contains enforcementId, memberId, payload, actorId
  * @returns {Object} Updated team member document
  */
-exports.updateTeamMember = async ({ enforcementId, memberId, payload, actorId }) => {
+exports.updateTeamMember = async ({ enforcementId, memberId, payload, actor, actorId }) => {
   // Verify enforcement exists
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
@@ -517,6 +565,8 @@ exports.updateTeamMember = async ({ enforcementId, memberId, payload, actorId })
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
 
   // Find and verify team member belongs to this enforcement
   const member = await TeamMember.findOne({ _id: memberId, enforcement: enforcementId });
@@ -561,7 +611,7 @@ exports.updateTeamMember = async ({ enforcementId, memberId, payload, actorId })
  * @param {Object} params - Contains enforcementId, memberId, actorId
  * @returns {Object} Deleted team member document
  */
-exports.deleteTeamMember = async ({ enforcementId, memberId, actorId }) => {
+exports.deleteTeamMember = async ({ enforcementId, memberId, actor, actorId }) => {
   // Verify enforcement exists
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
@@ -569,6 +619,8 @@ exports.deleteTeamMember = async ({ enforcementId, memberId, actorId }) => {
     err.statusCode = 404;
     throw err;
   }
+
+  assertOfficerOwnership(enforcement, actor, actorId);
 
   // Find and verify team member belongs to this enforcement
   const member = await TeamMember.findOne({ _id: memberId, enforcement: enforcementId });
