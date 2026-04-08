@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getEnforcements, getEnforcementById, getEvidence, getTeam, addAction, closeEnforcement } from "../../../services/enforcementAPI";
-import { FileText, Filter, AlertCircle, CheckCircle, X, Users, Paperclip, ArrowRight, Clock3, Scale, Plus, Lock, RotateCcw, Activity, Sparkles, Gavel } from "lucide-react";
+import { FileText, Filter, AlertCircle, CheckCircle, X, Users, Paperclip, ArrowRight, Clock3, Scale, Plus, Lock, RotateCcw, Activity, Sparkles, Gavel, Ship } from "lucide-react";
 import { format } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -425,6 +425,31 @@ export default function OfficerCases() {
                       <div className="rounded-xl bg-white/10 border border-white/10 p-3">
                         <p className="text-[10px] uppercase tracking-widest text-slate-300 font-black">Evidence</p>
                         <p className="mt-1 font-semibold">{selectedCaseEvidence.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-blue-50 p-5 relative overflow-hidden lg:col-span-1">
+                  <div className="relative z-10 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Ship className="w-4 h-4 text-blue-600" />
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-blue-600">Vessel Intelligence</p>
+                    </div>
+                
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black">Reported by Fisherman</p>
+                        <p className="mt-1 font-bold text-slate-800">{selectedCase.relatedCase?.baseReport?.vessel?.name || "Unknown Vessel"}</p>
+                        <p className="text-xs text-slate-500 font-mono">MMSI: {selectedCase.relatedCase?.baseReport?.vessel?.mmsi || "N/A"}</p>
+                      </div>
+                  
+                      <div className="pt-2 border-t border-blue-100">
+                        <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black">Admin Tracked Data</p>
+                        <p className="mt-1 font-bold text-slate-800">{selectedCase.relatedCase?.vesselId || "Pending Verification"}</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <span className="px-2 py-0.5 rounded bg-blue-100 text-[9px] font-black text-blue-700 uppercase">Type: {selectedCase.relatedCase?.vesselType || "N/A"}</span>
+                          <span className="px-2 py-0.5 rounded bg-amber-100 text-[9px] font-black text-amber-700 uppercase">Tracked: {selectedCase.relatedCase?.trackedVesselData ? "YES" : "NO"}</span>
+                        </div>
                       </div>
                     </div>
                   </div>

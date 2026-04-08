@@ -53,15 +53,15 @@ export default function OfficerReportedIncidents() {
       setLoading(true);
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `${API_BASE_URL}/api/illegal-cases?status=ESCALATED&assignedOfficer=${user?._id}`,
+        `${API_BASE_URL}/api/enforcements?status=OPEN`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const items = res.data.items || [];
       setCases(items);
       
       // Center map on the first case if available
-      if (items.length > 0 && items[0].baseReport?.location?.coordinates) {
-        const [lng, lat] = items[0].baseReport.location.coordinates;
+      if (items.length > 0 && items[0].relatedCase?.baseReport?.location?.coordinates) {
+        const [lng, lat] = items[0].relatedCase.baseReport.location.coordinates;
         setMapCenter([lat, lng]);
       }
     } catch (err) {
@@ -79,8 +79,8 @@ export default function OfficerReportedIncidents() {
 
   const handleCaseClick = (caseItem) => {
     setSelectedCase(caseItem);
-    if (caseItem.baseReport?.location?.coordinates) {
-      const [lng, lat] = caseItem.baseReport.location.coordinates;
+    if (caseItem.relatedCase?.baseReport?.location?.coordinates) {
+      const [lng, lat] = caseItem.relatedCase.baseReport.location.coordinates;
       setMapCenter([lat, lng]);
     }
   };
@@ -94,14 +94,33 @@ export default function OfficerReportedIncidents() {
     }
   };
 
-  const getMarkerIcon = (severity) => {
+  const getMarkerIcon = (severity, type = "incident") => {
     const color = severity === "CRITICAL" ? "#f43f5e" : 
                  severity === "HIGH" ? "#f97316" : 
                  severity === "MEDIUM" ? "#f59e0b" : "#3b82f6";
     
+    if (type === "vessel") {
+      return L.divIcon({
+        className: 'custom-div-icon',
+        html: `<div style="background-color: white; color: ${color}; width: 32px; height: 32px; border-radius: 12px; border: 2px solid ${color}; display: flex; items-center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"></path><path d="M19.38 20.51a11.58 11.58 0 0 0-14.76 0"></path><path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"></path><path d="M12 12V2"></path><path d="M6 12h12l-1 7H7l-1-7Z"></path></svg>
+               </div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+    }
+
     return L.divIcon({
       className: 'custom-div-icon',
-      html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>`,
+      html: `<div style="position: relative; width: 24px; height: 24px;">
+               <div style="position: absolute; inset: 0; background-color: ${color}; opacity: 0.4; border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+               <div style="position: relative; background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"></div>
+             </div>
+             <style>
+               @keyframes ping {
+                 75%, 100% { transform: scale(3.5); opacity: 0; }
+               }
+             </style>`,
       iconSize: [24, 24],
       iconAnchor: [12, 12]
     });
@@ -165,36 +184,58 @@ export default function OfficerReportedIncidents() {
             <MapRecenter center={mapCenter} />
             
             {filteredCases.map((c) => {
-              if (!c.baseReport?.location?.coordinates) return null;
-              const [lng, lat] = c.baseReport.location.coordinates;
-              return (
-                <Marker 
-                  key={c._id} 
-                  position={[lat, lng]}
-                  icon={getMarkerIcon(c.severity)}
-                  eventHandlers={{
-                    click: () => handleCaseClick(c),
-                  }}
-                >
-                  <Popup className="custom-popup">
-                    <div className="p-1">
-                      <h3 className="font-bold text-slate-900 mb-1">{c.title}</h3>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${getSeverityColor(c.severity)}`}>
-                          {c.severity}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-500">{c.caseNumber}</span>
+              const incidentCoords = c.relatedCase?.baseReport?.location?.coordinates;
+              const vesselCoords = c.relatedCase?.baseReport?.vessel?.latitude && c.relatedCase?.baseReport?.vessel?.longitude 
+                ? [c.relatedCase.baseReport.vessel.longitude, c.relatedCase.baseReport.vessel.latitude] 
+                : null;
+
+              const markers = [];
+              
+              if (incidentCoords) {
+                const [lng, lat] = incidentCoords;
+                markers.push(
+                  <Marker 
+                    key={`${c._id}-incident`}
+                    position={[lat, lng]}
+                    icon={getMarkerIcon(c.severity || c.priority, "incident")}
+                    eventHandlers={{ click: () => handleCaseClick(c) }}
+                  >
+                    <Popup className="custom-popup">
+                      <div className="p-1">
+                        <div className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-1">Incident Spot</div>
+                        <h3 className="font-bold text-slate-900 mb-1">{c.title || c._id.slice(-6).toUpperCase()}</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${getSeverityColor(c.severity || c.priority)}`}>
+                            {c.severity || c.priority}
+                          </span>
+                        </div>
                       </div>
-                      <Link 
-                        to={`/dashboard/officer/cases`}
-                        className="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 mt-2"
-                      >
-                        Log Action <ArrowRight className="w-3 h-3" />
-                      </Link>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
+                    </Popup>
+                  </Marker>
+                );
+              }
+
+              if (vesselCoords) {
+                const [lng, lat] = vesselCoords;
+                markers.push(
+                  <Marker 
+                    key={`${c._id}-vessel`}
+                    position={[lat, lng]}
+                    icon={getMarkerIcon(c.severity || c.priority, "vessel")}
+                    eventHandlers={{ click: () => handleCaseClick(c) }}
+                  >
+                    <Popup className="custom-popup">
+                      <div className="p-1">
+                        <div className="text-[10px] uppercase font-black tracking-widest text-blue-500 mb-1">Suspect Vessel</div>
+                        <h3 className="font-bold text-slate-900 mb-1">{c.relatedCase?.baseReport?.vessel?.name || "Unknown Vessel"}</h3>
+                        <div className="text-[10px] font-mono font-bold text-slate-500">MMSI: {c.relatedCase?.baseReport?.vessel?.mmsi || "N/A"}</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              }
+
+              return markers;
             })}
           </MapContainer>
 
@@ -279,7 +320,7 @@ export default function OfficerReportedIncidents() {
                   <div className="flex items-center gap-2 mb-4">
                     <MapPin className={`w-3.5 h-3.5 ${selectedCase?._id === c._id ? "text-blue-400" : "text-slate-400"}`} />
                     <span className={`text-[11px] font-medium truncate ${selectedCase?._id === c._id ? "text-slate-300" : "text-slate-500"}`}>
-                      {c.baseReport?.location?.address || "Location not specified"}
+                      {c.relatedCase?.baseReport?.location?.address || "Location not specified"}
                     </span>
                   </div>
 
@@ -287,7 +328,7 @@ export default function OfficerReportedIncidents() {
                     <div className="flex items-center gap-2">
                        <Info className={`w-3.5 h-3.5 ${selectedCase?._id === c._id ? "text-slate-500" : "text-slate-400"}`} />
                        <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedCase?._id === c._id ? "text-slate-500" : "text-slate-400"}`}>
-                         vessel: {c.vesselId}
+                         vessel: {c.relatedCase?.vesselId || "N/A"}
                        </span>
                     </div>
                     <Link 

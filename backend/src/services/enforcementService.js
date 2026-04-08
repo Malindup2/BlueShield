@@ -57,14 +57,22 @@ exports.list = async ({ query, user }) => {
   const sort = query.sort || "-createdAt";
 
   const [items, total] = await Promise.all([
-    Enforcement.find(filter).sort(sort).skip(skip).limit(limit),
+    Enforcement.find(filter)
+      .populate({
+        path: "relatedCase",
+        populate: { path: "baseReport" },
+      })
+      .populate("leadOfficer", "name email role")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit),
     Enforcement.countDocuments(filter),
   ]);
 
   return { page, limit, total, items };
 };
 
-exports.getById = async (enforcementId) => {
+exports.getById = async (enforcementId, user) => {
   const doc = await Enforcement.findById(enforcementId)
     .populate({
       path: "relatedCase",
@@ -77,21 +85,38 @@ exports.getById = async (enforcementId) => {
     err.statusCode = 404;
     throw err;
   }
+
+  // Security Check (IDOR)
+  if (user && user.role === "OFFICER" && doc.leadOfficer?._id.toString() !== user._id.toString()) {
+    const err = new Error("Access Denied: You are not assigned to this case");
+    err.statusCode = 403;
+    throw err;
+  }
+
   return doc;
 };
 
-exports.update = async ({ enforcementId, payload, actorId }) => {
+exports.update = async ({ enforcementId, payload, actor, actorId }) => {
+  const doc = await Enforcement.findById(enforcementId);
+  if (!doc) {
+    const err = new Error("Enforcement not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Security Check (IDOR)
+  if (actor && actor.role === "OFFICER" && doc.leadOfficer?.toString() !== actorId) {
+    const err = new Error("Access Denied: You cannot modify a case assigned to another officer");
+    err.statusCode = 403;
+    throw err;
+  }
+
   const updated = await Enforcement.findByIdAndUpdate(
     enforcementId,
     { ...payload, updatedBy: actorId },
     { new: true, runValidators: true }
   );
 
-  if (!updated) {
-    const err = new Error("Enforcement not found");
-    err.statusCode = 404;
-    throw err;
-  }
   return updated;
 };
 
@@ -184,13 +209,21 @@ exports.pushRiskAssessment = async ({ enforcementId, assessment, actorId }) => {
   return updated;
 };
 
-exports.closeEnforcement = async ({ enforcementId, outcome, penaltyAmount, notes, actorId }) => {
+exports.closeEnforcement = async ({ enforcementId, outcome, penaltyAmount, notes, actor, actorId }) => {
   const enforcement = await Enforcement.findById(enforcementId);
   if (!enforcement) {
     const err = new Error("Enforcement not found");
     err.statusCode = 404;
     throw err;
   }
+
+  // Security Check (IDOR)
+  if (actor && actor.role === "OFFICER" && enforcement.leadOfficer?.toString() !== actorId) {
+    const err = new Error("Access Denied: You cannot close a case assigned to another officer");
+    err.statusCode = 403;
+    throw err;
+  }
+
   if (enforcement.status === "CLOSED_RESOLVED") {
     const err = new Error("Enforcement is already closed");
     err.statusCode = 409;
