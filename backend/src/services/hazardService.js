@@ -263,3 +263,215 @@ exports.deleteIfAllowed = async ({ id }) => {
   await Hazard.deleteOne({ _id: id });
   return { deletedId: id };
 };
+
+
+
+
+exports.listReviewReports = async ({ query }) => {
+
+
+  const page = Math.max(parseInt(query.page || "1", 10), 1);
+  const limit = Math.min(Math.max(parseInt(query.limit || "10", 10), 1), 50);
+  const skip = (page - 1) * limit;
+
+  const filter = {
+    reportType: { $in: ["HAZARD", "ENVIRONMENTAL"] },
+  };
+
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  if (query.reportType && ["HAZARD", "ENVIRONMENTAL"].includes(query.reportType)) {
+    filter.reportType = query.reportType;
+  }
+
+  if (query.severity) {
+    filter.severity = query.severity;
+  }
+
+  if (query.search) {
+    filter.$or = [
+      { title: { $regex: query.search, $options: "i" } },
+      { description: { $regex: query.search, $options: "i" } },
+      { "location.address": { $regex: query.search, $options: "i" } },
+    ];
+  }
+
+  if (query.dateFrom || query.dateTo) {
+    filter.createdAt = {};
+    if (query.dateFrom) filter.createdAt.$gte = new Date(query.dateFrom);
+    if (query.dateTo) filter.createdAt.$lte = new Date(query.dateTo);
+  }
+
+  const sort = query.sort || "-createdAt";
+
+  const [items, total] = await Promise.all([
+    Report.find(filter)
+      .populate("reportedBy", "name email")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit),
+    Report.countDocuments(filter),
+  ]);
+
+  return { page, limit, total, items };
+};
+
+
+
+
+
+exports.getReviewReportById = async (reportId) => {
+ 
+
+  const doc = await Report.findById(reportId)
+    .populate("reportedBy", "name email")
+    .lean(); 
+
+  if (!doc) {
+    const err = new Error("Report not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!["HAZARD", "ENVIRONMENTAL"].includes(doc.reportType)) {
+    const err = new Error("This report is not available in hazard review");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return doc; 
+};
+
+
+
+
+
+exports.updateReviewReportStatus = async ({ reportId, payload, actorId }) => {
+
+
+  const allowedStatuses = ["PENDING", "UNDER_REVIEW", "VERIFIED", "REJECTED"];
+
+  const report = await Report.findById(reportId);
+  if (!report) {
+    const err = new Error("Report not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!["HAZARD", "ENVIRONMENTAL"].includes(report.reportType)) {
+    const err = new Error("Only HAZARD or ENVIRONMENTAL reports can be reviewed here");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!payload.status || !allowedStatuses.includes(payload.status)) {
+    const err = new Error("Invalid review status");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (report.status === "RESOLVED") {
+    const err = new Error("Resolved report cannot be changed here");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  if (payload.status === "PENDING" || payload.status === "UNDER_REVIEW") {
+    const existingHazard = await Hazard.findOne({ baseReport: reportId });
+    if (existingHazard) {
+      const err = new Error("Cannot move report back after hazard case creation");
+      err.statusCode = 409;
+      throw err;
+    }
+  }
+
+  const updated = await Report.findByIdAndUpdate(
+    reportId,
+    { $set: { status: payload.status } },
+    { new: true, runValidators: true }
+  ).populate("reportedBy", "name email");
+
+  return updated;
+};
+
+
+
+
+exports.getDashboardSummary = async () => {
+  const [
+    pendingReports,
+    activeZones,
+    disabledZones,
+    verifiedHazardCases,
+    recentPendingReports,
+    hazardCases,
+    activeZoneItems,
+  ] = await Promise.all([
+    Report.countDocuments({
+      reportType: { $in: ["HAZARD", "ENVIRONMENTAL"] },
+      status: "PENDING",
+    }),
+
+    Zone.countDocuments({ status: "ACTIVE" }),
+
+    Zone.countDocuments({ status: "DISABLED" }),
+
+    Hazard.countDocuments({
+      handlingStatus: { $ne: "RESOLVED" },
+    }),
+
+    Report.find({
+      reportType: { $in: ["HAZARD", "ENVIRONMENTAL"] },
+      status: "PENDING",
+    })
+      .populate("reportedBy", "name email")
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean(),
+
+    Hazard.find({})
+      .select("hazardCategory")
+      .lean(),
+
+    Zone.find({ status: "ACTIVE" })
+      .limit(20)
+      .populate("sourceHazard", "caseId hazardCategory severity handlingStatus")
+      .lean(),
+  ]);
+
+  const categoryBase = {
+    WEATHER: 0,
+    POLLUTION: 0,
+    DEBRIS: 0,
+    OBSTRUCTION: 0,
+    OTHER: 0,
+  };
+
+  for (const hazard of hazardCases) {
+    const key = hazard?.hazardCategory || "OTHER";
+    if (categoryBase[key] !== undefined) {
+      categoryBase[key] += 1;
+    } else {
+      categoryBase.OTHER += 1;
+    }
+  }
+
+  const monthlyCategoryChart = Object.entries(categoryBase).map(([category, count]) => ({
+    category,
+    count,
+  }));
+
+  return {
+    stats: {
+      pendingReports,
+      activeZones,
+      disabledZones,
+      verifiedHazardCases,
+    },
+    monthlyCategoryChart,
+    recentPendingReports,
+    activeZonesMap: activeZoneItems,
+  };
+};

@@ -10,6 +10,27 @@ const hazardCtrl = require("../controllers/hazardController");
 
 
 
+router.get(
+  "/review-reports",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  hazardCtrl.listReviewReports
+);
+
+router.get(
+  "/review-reports/:reportId",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  hazardCtrl.getReviewReportById
+);
+
+router.patch(
+  "/review-reports/:reportId/status",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  hazardCtrl.updateReviewReportStatus
+);
+
 // Create hazard from report
 router.post(
   "/from-report/:reportId",
@@ -17,6 +38,22 @@ router.post(
   authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
   validate(v.fromReport),
   hazardCtrl.createFromReport
+);
+
+
+router.post(
+  "/weather-check",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  hazardCtrl.weatherByLocation
+);
+
+
+router.get(
+  "/dashboard-summary",
+  protect,
+  authorize("HAZARD_ADMIN", "SYSTEM_ADMIN"),
+  hazardCtrl.dashboardSummary
 );
 
 // List hazards
