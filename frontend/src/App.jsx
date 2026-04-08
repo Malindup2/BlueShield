@@ -32,6 +32,11 @@ import ResolvedIllegalCases from "./pages/dashboards/illegal-admin/ResolvedIlleg
 import HazardAdminHome from "./pages/dashboards/hazard-admin/HazardAdminHome";
 import HazardAdminReports from "./pages/dashboards/hazard-admin/HazardAdminReports";
 import HazardCreateCase from "./pages/dashboards/hazard-admin/HazardCreateCase";
+import HazardCases from "./pages/dashboards/hazard-admin/HazardCases";
+import HazardCaseDetails from "./pages/dashboards/hazard-admin/HazardCaseDetails";
+import HazardCaseEdit from "./pages/dashboards/hazard-admin/HazardCaseEdit";
+import Zones from "./pages/dashboards/hazard-admin/Zones";
+
 
 import SystemAdminHome from "./pages/dashboards/system-admin/SystemAdminHome";
 import ModulePlaceholder from "./pages/common/ModulePlaceholder";
@@ -39,10 +44,7 @@ import ModulePlaceholder from "./pages/common/ModulePlaceholder";
 import PrivacyPolicy from "./pages/info/PrivacyPolicy";
 import TermsOfService from "./pages/info/TermsOfService";
 import SafetyGuides from "./pages/info/SafetyGuides";
-import HazardCases from "./pages/dashboards/hazard-admin/HazardCases";
-import HazardCaseDetails from "./pages/dashboards/hazard-admin/HazardCaseDetails";
-import HazardCaseEdit from "./pages/dashboards/hazard-admin/HazardCaseEdit";
-import Zones from "./pages/dashboards/hazard-admin/Zones";
+
 
 
 const ILLEGAL_ROLES = ["ILLEGAL_ADMIN", "SYSTEM_ADMIN"];
