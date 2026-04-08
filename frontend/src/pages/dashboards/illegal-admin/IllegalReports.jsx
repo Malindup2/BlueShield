@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Eye, Trash2, CheckCircle2, Plus, Search, X,
-  MapPin, AlertTriangle, Calendar, Paperclip, FileText
+  MapPin, AlertTriangle, Paperclip, FileText
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
@@ -35,12 +35,43 @@ function severityColor(severity) {
   }[severity] || "bg-slate-100 text-slate-600";
 }
 
+/**
+ * FIX: More robust image detection.
+ * Handles cases where Mongoose subdocument serialization may return
+ * att.type as undefined even though it exists in the DB.
+ * Falls back to URL-based detection and also checks common image hosting domains.
+ */
+function isImageAttachment(att) {
+  if (!att) return false;
+  const url = att.url || "";
+  const mimeType = att.type || "";
+
+  // Check MIME type first (most reliable)
+  if (mimeType.startsWith("image/")) return true;
+
+  // Check URL file extension
+  if (/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url)) return true;
+
+  // Check known image hosting domains (picsum, unsplash, imgur, cloudinary)
+  if (
+    url.includes("picsum.photos") ||
+    url.includes("images.unsplash.com") ||
+    url.includes("imgur.com") ||
+    url.includes("res.cloudinary.com") ||
+    url.includes("cloudinary.com")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export default function IllegalReports() {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [viewReport, setViewReport] = useState(null); // report object for detail modal
+  const [viewReport, setViewReport] = useState(null);
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -56,17 +87,14 @@ export default function IllegalReports() {
 
   useEffect(() => { fetchReports(); }, [fetchReports]);
 
-  // Pending = PENDING status, not reviewed yet
   const pendingReports = reports.filter(
     (r) => r.status === "PENDING" && !r.illegalCase?.isReviewed
   );
 
-  // Reviewed/rejected = REJECTED or isReviewed=true or RESOLVED
   const reviewedReports = reports.filter(
     (r) => r.status === "REJECTED" || r.status === "RESOLVED" || r.illegalCase?.isReviewed
   );
 
-  // Filter pending by search (by unique code or title)
   const filteredPending = pendingReports.filter((r) => {
     const code = codeFromId(r._id).toLowerCase();
     return (
@@ -101,7 +129,6 @@ export default function IllegalReports() {
     navigate(`/dashboard/illegal-admin/cases/new/${reportId}`);
   };
 
-  // Get lat/lng from report location
   function getLatLng(report) {
     const coords = report.location?.coordinates;
     if (coords && coords.length === 2) return { lat: coords[1], lng: coords[0] };
@@ -138,7 +165,7 @@ export default function IllegalReports() {
       {/* Pending cards grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[1,2,3].map((i) => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="bg-slate-100 animate-pulse rounded-2xl h-52" />
           ))}
         </div>
@@ -221,20 +248,13 @@ export default function IllegalReports() {
                 key={report._id}
                 className="flex items-center gap-4 bg-white border border-slate-200 rounded-2xl px-5 py-4 shadow-sm hover:shadow-md transition"
               >
-                {/* Tick icon */}
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  isResolved ? "bg-emerald-100" : "bg-slate-100"
-                }`}>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${isResolved ? "bg-emerald-100" : "bg-slate-100"}`}>
                   <CheckCircle2 className={`w-5 h-5 ${isResolved ? "text-emerald-600" : "text-slate-400"}`} />
                 </div>
-
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-black text-slate-900 text-sm truncate">{report.title}</p>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                      isResolved ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${isResolved ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
                       {isResolved ? "Resolved" : "Rejected"}
                     </span>
                     <span className="text-[10px] text-slate-400 font-bold">{code}</span>
@@ -245,8 +265,6 @@ export default function IllegalReports() {
                       : `Closed by admin: ${format(new Date(report.updatedAt || Date.now()), "MMM dd, yyyy")}`}
                   </p>
                 </div>
-
-                {/* Actions */}
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setViewReport(report)}
@@ -331,29 +349,41 @@ export default function IllegalReports() {
               {viewReport.attachments?.length > 0 && (
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
-                    <Paperclip className="w-3 h-3" /> Attachments
+                    <Paperclip className="w-3 h-3" /> Attachments ({viewReport.attachments.length})
                   </p>
                   <div className="grid grid-cols-3 gap-3">
                     {viewReport.attachments.map((att, idx) => {
-                      const isImage = att.type?.startsWith("image") ||
-                        /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url || "");
-                      return isImage ? (
-                        <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer">
+                      // FIX: Use robust isImageAttachment() helper instead of inline check
+                      // This handles Mongoose subdocument serialization edge cases
+                      // and detects images from known hosts even without file extensions
+                      const url = att?.url || att || "";
+                      const attObj = typeof att === "string" ? { url: att } : att;
+                      const showAsImage = isImageAttachment(attObj);
+
+                      return showAsImage ? (
+                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
                           <img
-                            src={att.url}
-                            alt={`attachment-${idx}`}
+                            src={url}
+                            alt={`attachment-${idx + 1}`}
                             className="w-full h-24 object-cover rounded-xl border border-slate-200 hover:opacity-80 transition"
+                            onError={(e) => {
+                              // If image fails to load, replace with a file link
+                              e.target.parentElement.innerHTML = `
+                                <div class="flex items-center gap-2 bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs font-bold text-slate-500 h-24">
+                                  <span>Image unavailable</span>
+                                </div>`;
+                            }}
                           />
                         </a>
                       ) : (
                         <a
                           key={idx}
-                          href={att.url}
+                          href={url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs font-bold text-blue-700 hover:bg-blue-50 transition"
+                          className="flex items-center gap-2 bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs font-bold text-blue-700 hover:bg-blue-50 transition h-24"
                         >
-                          <Paperclip className="w-4 h-4" />
+                          <Paperclip className="w-4 h-4 flex-shrink-0" />
                           File {idx + 1}
                         </a>
                       );

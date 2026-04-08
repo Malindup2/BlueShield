@@ -45,5 +45,5 @@ const upload = multer({
 
 // Export the configured middleware for evidence routes
 module.exports = {
-    uploadEvidence: upload.array("files", 5),
+    uploadEvidence: upload.array("attachments", 5),
 };
