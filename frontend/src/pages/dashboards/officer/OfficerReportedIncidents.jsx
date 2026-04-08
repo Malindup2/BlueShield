@@ -1,19 +1,18 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { 
-  MapPin, AlertCircle, Shield, ArrowRight, Layers, 
-  Crosshair, Filter, Navigation, Info, Eye, ExternalLink
+  MapPin, AlertCircle, Shield, Layers, 
+  Crosshair, Filter, Navigation, Info, ExternalLink
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import axios from "axios";
 import toast from "react-hot-toast";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import "leaflet/dist/leaflet.css";
 
-import API_BASE_URL from "../../../config/api";
 import { useAuth } from "../../../context/AuthContext";
 import { Skeleton } from "../../../components/common/Skeleton";
+import { getCaseRecordById, listCaseRecords } from "../../../services/illegalCaseAPI";
 
 // Fix Leaflet Marker Icon issue in React
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -51,17 +50,13 @@ export default function OfficerReportedIncidents() {
   const fetchAssignedCases = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      const res = await axios.get(
-        `${API_BASE_URL}/api/enforcements?status=OPEN`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const items = res.data.items || [];
+      const res = await listCaseRecords({ limit: 100 });
+      const items = res.data?.items || [];
       setCases(items);
       
       // Center map on the first case if available
-      if (items.length > 0 && items[0].relatedCase?.baseReport?.location?.coordinates) {
-        const [lng, lat] = items[0].relatedCase.baseReport.location.coordinates;
+      if (items.length > 0 && items[0].baseReport?.location?.coordinates) {
+        const [lng, lat] = items[0].baseReport.location.coordinates;
         setMapCenter([lat, lng]);
       }
     } catch (err) {
@@ -77,11 +72,20 @@ export default function OfficerReportedIncidents() {
     return cases.filter(c => c.severity === filterSeverity);
   }, [cases, filterSeverity]);
 
-  const handleCaseClick = (caseItem) => {
+  const handleCaseClick = async (caseItem) => {
     setSelectedCase(caseItem);
-    if (caseItem.relatedCase?.baseReport?.location?.coordinates) {
-      const [lng, lat] = caseItem.relatedCase.baseReport.location.coordinates;
+    if (caseItem.baseReport?.location?.coordinates) {
+      const [lng, lat] = caseItem.baseReport.location.coordinates;
       setMapCenter([lat, lng]);
+    }
+
+    try {
+      const res = await getCaseRecordById(caseItem._id);
+      if (res.data) {
+        setSelectedCase(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to load case details", error);
     }
   };
 
@@ -184,9 +188,9 @@ export default function OfficerReportedIncidents() {
             <MapRecenter center={mapCenter} />
             
             {filteredCases.map((c) => {
-              const incidentCoords = c.relatedCase?.baseReport?.location?.coordinates;
-              const vesselCoords = c.relatedCase?.baseReport?.vessel?.latitude && c.relatedCase?.baseReport?.vessel?.longitude 
-                ? [c.relatedCase.baseReport.vessel.longitude, c.relatedCase.baseReport.vessel.latitude] 
+              const incidentCoords = c.baseReport?.location?.coordinates;
+              const vesselCoords = c.baseReport?.vessel?.latitude && c.baseReport?.vessel?.longitude 
+                ? [c.baseReport.vessel.longitude, c.baseReport.vessel.latitude] 
                 : null;
 
               const markers = [];
@@ -227,8 +231,8 @@ export default function OfficerReportedIncidents() {
                     <Popup className="custom-popup">
                       <div className="p-1">
                         <div className="text-[10px] uppercase font-black tracking-widest text-blue-500 mb-1">Suspect Vessel</div>
-                        <h3 className="font-bold text-slate-900 mb-1">{c.relatedCase?.baseReport?.vessel?.name || "Unknown Vessel"}</h3>
-                        <div className="text-[10px] font-mono font-bold text-slate-500">MMSI: {c.relatedCase?.baseReport?.vessel?.mmsi || "N/A"}</div>
+                        <h3 className="font-bold text-slate-900 mb-1">{c.baseReport?.vessel?.name || c.vesselType || "Unknown Vessel"}</h3>
+                        <div className="text-[10px] font-mono font-bold text-slate-500">MMSI: {c.baseReport?.vessel?.mmsi || c.vesselId || "N/A"}</div>
                       </div>
                     </Popup>
                   </Marker>
@@ -285,6 +289,70 @@ export default function OfficerReportedIncidents() {
           </div>
 
           <div className="flex-1 overflow-y-auto pr-2 space-y-4 scroll-smooth custom-scrollbar">
+            {selectedCase && (
+              <div className="p-5 rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white to-blue-50 shadow-sm space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-500 mb-2">Selected Case</p>
+                    <h3 className="text-lg font-black text-slate-900">{selectedCase.title}</h3>
+                    <p className="text-xs text-slate-500 mt-1">{selectedCase.caseNumber} · {selectedCase.status}</p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${getSeverityColor(selectedCase.severity)}`}>
+                    {selectedCase.severity}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 text-sm text-slate-600">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Original Report</p>
+                    <p className="font-medium text-slate-800">{selectedCase.baseReport?.title || "No report title"}</p>
+                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{selectedCase.baseReport?.description || selectedCase.description || "No report description"}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-white border border-slate-100 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Officer</p>
+                      <p className="mt-1 font-bold text-slate-900 text-sm">{selectedCase.assignedOfficer?.name || "Unassigned"}</p>
+                      <p className="text-xs text-slate-500">{selectedCase.assignedOfficer?.email || ""}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white border border-slate-100 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vessel</p>
+                      <p className="mt-1 font-bold text-slate-900 text-sm">{selectedCase.baseReport?.vessel?.name || selectedCase.vesselType || "Unknown"}</p>
+                      <p className="text-xs text-slate-500">{selectedCase.vesselId || selectedCase.baseReport?.vessel?.mmsi || "N/A"}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl bg-white border border-slate-100 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Escalated</p>
+                      <p className="mt-1 font-bold text-slate-900 text-sm">{selectedCase.escalatedAt ? new Date(selectedCase.escalatedAt).toLocaleString() : "Not escalated"}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white border border-slate-100 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tracked</p>
+                      <p className="mt-1 font-bold text-slate-900 text-sm">{selectedCase.trackButtonUsed ? "Yes" : "No"}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-white border border-slate-100 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Location</p>
+                    <p className="mt-1 font-bold text-slate-900 text-sm">{selectedCase.baseReport?.location?.address || "Location not specified"}</p>
+                  </div>
+
+                  {selectedCase.trackedVesselData && (
+                    <div className="rounded-2xl bg-slate-900 text-white p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Tracked Vessel Data</p>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                        <p>IMO: {selectedCase.trackedVesselData.imo || "N/A"}</p>
+                        <p>Type: {selectedCase.trackedVesselData.vesselType || "N/A"}</p>
+                        <p>Owner: {selectedCase.trackedVesselData.registeredOwner || "N/A"}</p>
+                        <p>Risk: {selectedCase.trackedVesselData.riskCategory || "N/A"}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {filteredCases.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center p-8 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
                 <div className="p-4 bg-white rounded-full shadow-sm mb-4">
@@ -320,7 +388,7 @@ export default function OfficerReportedIncidents() {
                   <div className="flex items-center gap-2 mb-4">
                     <MapPin className={`w-3.5 h-3.5 ${selectedCase?._id === c._id ? "text-blue-400" : "text-slate-400"}`} />
                     <span className={`text-[11px] font-medium truncate ${selectedCase?._id === c._id ? "text-slate-300" : "text-slate-500"}`}>
-                      {c.relatedCase?.baseReport?.location?.address || "Location not specified"}
+                      {c.baseReport?.location?.address || "Location not specified"}
                     </span>
                   </div>
 
@@ -328,7 +396,7 @@ export default function OfficerReportedIncidents() {
                     <div className="flex items-center gap-2">
                        <Info className={`w-3.5 h-3.5 ${selectedCase?._id === c._id ? "text-slate-500" : "text-slate-400"}`} />
                        <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedCase?._id === c._id ? "text-slate-500" : "text-slate-400"}`}>
-                         vessel: {c.relatedCase?.vesselId || "N/A"}
+                         vessel: {c.vesselId || c.baseReport?.vessel?.mmsi || "N/A"}
                        </span>
                     </div>
                     <Link 

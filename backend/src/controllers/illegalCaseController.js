@@ -26,12 +26,12 @@ exports.updateCase = async (req, res) => {
 };
 
 exports.listCases = async (req, res) => {
-  try { res.json(await illegalCaseService.listCases({ query: req.query })); }
+  try { res.json(await illegalCaseService.listCases({ query: req.query, user: req.user })); }
   catch (e) { res.status(500).json({ message: e.message }); }
 };
 
 exports.getCaseById = async (req, res) => {
-  try { res.json(await illegalCaseService.getCaseById(req.params.caseId)); }
+  try { res.json(await illegalCaseService.getCaseById(req.params.caseId, req.user)); }
   catch (e) { res.status(e.statusCode || 500).json({ message: e.message }); }
 };
 

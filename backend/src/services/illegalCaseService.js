@@ -2,6 +2,7 @@ const axios = require("axios");
 const IllegalCase = require("../models/IllegalCase");
 const Report = require("../models/Report");
 const User = require("../models/User");
+const Enforcement = require("../models/Enforcement");
 
 const VESSEL_API_URLS = {
   LOW: "https://jsonkeeper.com/b/1EMJY",
@@ -148,18 +149,22 @@ exports.updateCase = async ({ caseId, payload }) => {
   return illegalCase;
 };
 
-exports.listCases = async ({ query }) => {
+exports.listCases = async ({ query, user }) => {
   const page = Math.max(parseInt(query.page || "1", 10), 1);
   const limit = Math.min(Math.max(parseInt(query.limit || "50", 10), 1), 100);
   const skip = (page - 1) * limit;
   const filter = {};
+  if (user && user.role === "OFFICER") {
+    filter.assignedOfficer = user._id;
+  } else if (query.assignedOfficer) {
+    filter.assignedOfficer = query.assignedOfficer;
+  }
   if (query.status) filter.status = query.status;
   if (query.severity) filter.severity = query.severity;
-  if (query.assignedOfficer) filter.assignedOfficer = query.assignedOfficer;
   const sort = query.sort || "-createdAt";
   const [items, total] = await Promise.all([
     IllegalCase.find(filter)
-      .populate("baseReport", "title reportType reportedBy location")
+      .populate("baseReport", "title reportType reportedBy location vessel severity description")
       .populate("createdBy", "name email")
       .populate("assignedOfficer", "name email")
       .sort(sort).skip(skip).limit(limit),
@@ -172,9 +177,9 @@ exports.listCases = async ({ query }) => {
  //Use .lean() so trackedVesselData (Mixed type) is returned as a plain javascript object
  
  
-exports.getCaseById = async (caseId) => {
+exports.getCaseById = async (caseId, user) => {
   const doc = await IllegalCase.findById(caseId)
-    .populate("baseReport")
+    .populate("baseReport", "title reportType reportedBy location vessel severity description status isAnonymous")
     .populate("createdBy", "name email role")
     .populate("assignedOfficer", "name email role")
     .populate("escalatedBy", "name email")
@@ -195,6 +200,15 @@ exports.getCaseById = async (caseId) => {
         `Stored value type: ${typeof doc.trackedVesselData}. Normalising to null for frontend.`
       );
       doc.trackedVesselData = null;
+    }
+  }
+
+  if (user && user.role === "OFFICER") {
+    const assignedOfficerId = doc.assignedOfficer?._id?.toString?.() || doc.assignedOfficer?.toString?.();
+    if (!assignedOfficerId || assignedOfficerId !== user._id.toString()) {
+      const err = new Error("Access denied: this case is not assigned to you");
+      err.statusCode = 403;
+      throw err;
     }
   }
 
@@ -273,6 +287,22 @@ exports.escalateCase = async ({ caseId, officerId, actorId }) => {
       { runValidators: false }
     );
   }
+
+  // Keep enforcement module in sync with escalations so officer/cases receives this assignment.
+  await Enforcement.findOneAndUpdate(
+    { relatedCase: illegalCase._id },
+    {
+      $setOnInsert: {
+        relatedCase: illegalCase._id,
+        priority: illegalCase.severity || "MEDIUM",
+      },
+      $set: {
+        leadOfficer: officerId,
+        updatedBy: actorId,
+      },
+    },
+    { upsert: true, new: true, runValidators: true }
+  );
 
   return IllegalCase.findById(caseId)
     .populate("assignedOfficer", "name email role")
