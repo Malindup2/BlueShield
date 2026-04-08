@@ -46,6 +46,20 @@ function riskColor(risk) {
   }[risk?.toLowerCase()] || "text-slate-400");
 }
 
+/**
+ * FRONTEND GUARD: Validates that trackedVesselData from the API is a proper
+ * vessel object and not a string, empty object {}, or null.
+ */
+function extractValidVessel(trackedVesselData) {
+  if (!trackedVesselData) return null;
+  if (typeof trackedVesselData !== "object" || Array.isArray(trackedVesselData)) return null;
+  const knownFields = ["imo", "vesselType", "registeredOwner", "riskCategory"];
+  const hasData = knownFields.some(
+    (f) => trackedVesselData[f] !== undefined && trackedVesselData[f] !== null && trackedVesselData[f] !== ""
+  );
+  return hasData ? trackedVesselData : null;
+}
+
 // ── PDF Generation ──────────────────────────────────────────────────────────
 function generatePDF(caseData) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -53,7 +67,6 @@ function generatePDF(caseData) {
   const margin = 18;
   const contentW = pageW - margin * 2;
 
-  // Header band
   doc.setFillColor(15, 23, 42);
   doc.rect(0, 0, pageW, 38, "F");
 
@@ -80,7 +93,6 @@ function generatePDF(caseData) {
 
   let y = 50;
 
-  // Document title
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.setTextColor(15, 23, 42);
@@ -98,7 +110,6 @@ function generatePDF(caseData) {
   doc.line(margin, y, pageW - margin, y);
   y += 8;
 
-  // Meta row
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(100, 116, 139);
@@ -117,7 +128,6 @@ function generatePDF(caseData) {
 
   y += 12;
 
-  // Section 1 heading
   doc.setFillColor(248, 250, 252);
   doc.rect(margin, y, contentW, 8, "F");
   doc.setDrawColor(226, 232, 240);
@@ -129,7 +139,6 @@ function generatePDF(caseData) {
   doc.text("SECTION 1 — CASE OVERVIEW", margin + 4, y + 5.5);
   y += 14;
 
-  // Title
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
@@ -142,7 +151,6 @@ function generatePDF(caseData) {
   doc.text(titleLines, margin, y);
   y += titleLines.length * 6 + 6;
 
-  // Vessel ID + Type table
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
@@ -157,7 +165,6 @@ function generatePDF(caseData) {
   });
   y = doc.lastAutoTable.finalY + 8;
 
-  // Description
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
@@ -175,7 +182,6 @@ function generatePDF(caseData) {
   doc.line(margin, y, pageW - margin, y);
   y += 10;
 
-  // Section 2 heading
   doc.setFillColor(15, 23, 42);
   doc.rect(margin, y, contentW, 8, "F");
   doc.setFont("helvetica", "bold");
@@ -184,7 +190,7 @@ function generatePDF(caseData) {
   doc.text("SECTION 2 — VESSEL TRACKING STATISTICS", margin + 4, y + 5.5);
   y += 14;
 
-  const vessel = caseData.trackedVesselData;
+  const vessel = extractValidVessel(caseData.trackedVesselData);
   if (!vessel) {
     doc.setFillColor(255, 247, 237);
     doc.roundedRect(margin, y, contentW, 14, 2, 2, "F");
@@ -222,7 +228,6 @@ function generatePDF(caseData) {
     y = doc.lastAutoTable.finalY + 8;
   }
 
-  // Footer
   const footerY = doc.internal.pageSize.getHeight() - 14;
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.3);
@@ -258,6 +263,7 @@ export default function IllegalCaseDetails() {
         getCaseRecordById(caseId),
         getOfficers(),
       ]);
+      console.debug("[IllegalCaseDetails] trackedVesselData:", caseRes.data?.trackedVesselData);
       setCaseData(caseRes.data);
       setOfficers(officersRes.data || []);
     } catch {
@@ -272,21 +278,8 @@ export default function IllegalCaseDetails() {
   const isFinalized = caseData?.status === "ESCALATED" || caseData?.status === "RESOLVED";
   const canDownloadPDF = !!caseData?.trackButtonUsed;
 
-  /**
-   * Read vessel directly from caseData — this is always the latest value
-   * from fetchCase() and is used in both the textMap (for translation) and
-   * directly in the JSX (for guaranteed display even before translation resolves).
-   */
-  const vessel = caseData?.trackedVesselData;
+  const vessel = extractValidVessel(caseData?.trackedVesselData);
 
-  /**
-   * textMap contains ALL strings that go through the translation system.
-   * Vessel data values ARE included here so they get translated when a
-   * non-English language is active.
-   *
-   * They are ALSO read directly from `vessel` in the JSX (see vesselRows below)
-   * as a fallback to ensure data always shows even if translation is in-flight.
-   */
   const textMap = useMemo(() => {
     if (!caseData) return {};
     return {
@@ -314,7 +307,6 @@ export default function IllegalCaseDetails() {
       labelOwner: "Registered Owner",
       labelRiskCategory: "Risk Category",
       labelViolations: "Previous Violations",
-      // Vessel data values — populated once tracking is done
       imoValue: vessel?.imo || "",
       vesselTypeDataValue: vessel?.vesselType || "",
       ownerValue: vessel?.registeredOwner || "",
@@ -404,21 +396,6 @@ export default function IllegalCaseDetails() {
 
   const pos = getLatLng();
 
-  /**
-   * VESSEL DISPLAY FIX:
-   * Each row has:
-   *   labelKey  — translated label via t() (e.g. "IMO Number" → translated)
-   *   valueKey  — key in textMap/translations (used by t() for translated value)
-   *   directVal — direct read from vessel object (always current, never stale)
-   *
-   * We display: t(valueKey) if it returns a non-empty string, else directVal.
-   * This means:
-   *   - In English: t() returns textMap[valueKey] = vessel.imo etc. ✓
-   *   - In non-English after translation: t() returns translated string ✓
-   *   - In non-English while translation is in-flight: directVal shows raw data ✓
-   *   - After tracking while non-English active: directVal shows immediately,
-   *     then auto-retranslate (from useTranslation fix) replaces with translated ✓
-   */
   const vesselRows = vessel
     ? [
         { labelKey: "labelImo",           valueKey: "imoValue",           directVal: vessel.imo ?? "—",                          colored: false },
@@ -482,7 +459,7 @@ export default function IllegalCaseDetails() {
         </div>
       </div>
 
-      {/* Download PDF button */}
+      {/* Download PDF button — STYLE: dark green background */}
       <div className="flex justify-end">
         <button
           onClick={() => {
@@ -496,7 +473,7 @@ export default function IllegalCaseDetails() {
           title={canDownloadPDF ? "Download case report as PDF" : t("pdfDisabledHint")}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition shadow-sm ${
             canDownloadPDF
-              ? "bg-[#0f172a] hover:bg-slate-700 text-white"
+              ? "bg-green-800 hover:bg-green-700 text-white"
               : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
           }`}
         >
@@ -511,10 +488,13 @@ export default function IllegalCaseDetails() {
       {/* Top row: Section 1 + Section 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
-        {/* SECTION 1 — Case Overview */}
-        <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+        {/* SECTION 1 — Case Overview (light blue background) */}
+        <div className="lg:col-span-3 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm p-6 space-y-5">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-black text-slate-900">{t("sectionOverview")}</h2>
+            {/* Case Overview title in prominent navy label */}
+            <span className="inline-flex items-center px-3 py-1 rounded-lg bg-[#1e3a5f] text-white text-sm font-black shadow-sm">
+              {t("sectionOverview")}
+            </span>
             <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase flex-shrink-0 ${severityStyle(caseData.severity)}`}>
               {t("severityValue")}
             </span>
@@ -528,7 +508,11 @@ export default function IllegalCaseDetails() {
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
                 <Hash className="w-3 h-3" /> {t("labelVesselId")}
               </p>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-black text-sm border border-blue-100">
+              {/*
+                STYLE: Vessel ID label — white background, dark blue border, bold dark blue text.
+                Replaces the previous navy/dark background label.
+              */}
+              <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-white text-[#1e3a8a] font-black text-sm border-2 border-[#1e3a8a]">
                 {t("vesselIdValue")}
               </span>
             </div>
@@ -554,13 +538,7 @@ export default function IllegalCaseDetails() {
           </div>
         </div>
 
-        {/* SECTION 2 — Vessel Tracking
-         *
-         * DISPLAY FIX: Value cells use a helper that prefers t(valueKey) when
-         * it returns a non-empty string, and falls back to directVal otherwise.
-         * This guarantees data always shows — even while translation is loading
-         * or when the translation cache was cleared after vessel data arrived.
-         */}
+        {/* SECTION 2 — Vessel Tracking (unchanged) */}
         <div
           className="lg:col-span-2 rounded-2xl overflow-hidden shadow-sm"
           style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0d2137 100%)" }}
@@ -575,7 +553,6 @@ export default function IllegalCaseDetails() {
               {vessel ? (
                 <div className="w-full space-y-3">
                   {vesselRows.map((item) => {
-                    // Prefer translated value; fall back to raw vessel data
                     const displayValue = t(item.valueKey) || item.directVal;
                     return (
                       <div key={item.labelKey} className="flex items-center justify-between bg-white/10 rounded-xl px-4 py-2.5 border border-white/10">
@@ -586,6 +563,18 @@ export default function IllegalCaseDetails() {
                       </div>
                     );
                   })}
+                </div>
+              ) : caseData.trackButtonUsed ? (
+                <div className="flex flex-col items-center gap-3 text-center px-2">
+                  <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-400/30 flex items-center justify-center">
+                    <Radar className="w-8 h-8 text-amber-300/70" />
+                  </div>
+                  <p className="text-amber-300 text-xs font-bold">
+                    Vessel data could not be retrieved at the time of tracking.
+                  </p>
+                  <p className="text-slate-400 text-[11px]">
+                    The tracking action has been recorded. Please contact your administrator if this data is required.
+                  </p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3">
@@ -622,17 +611,29 @@ export default function IllegalCaseDetails() {
       {/* Bottom row: Section 3 + Section 4 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-        {/* SECTION 3 — Operational Notes */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+        {/* SECTION 3 — Operational Notes (double-lined dark grey border) */}
+        <div
+          className="bg-white rounded-2xl shadow-sm p-6 space-y-5"
+          style={{
+            border: "2px solid #4b5563",
+            outline: "1px solid #9ca3af",
+            outlineOffset: "3px",
+          }}
+        >
           <h2 className="text-base font-black text-slate-900">{t("sectionNotes")}</h2>
 
           <div className="space-y-2">
+            {/*
+              STYLE: textarea background changed to light pastel blue.
+              Only the textarea itself is pastel blue — the surrounding area is unchanged.
+            */}
             <textarea
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               placeholder={t("notePlaceholder")}
               rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              style={{ backgroundColor: "#e3eaf6" }}
             />
             <button
               onClick={handleAddNote}
@@ -709,7 +710,7 @@ export default function IllegalCaseDetails() {
           )}
         </div>
 
-        {/* SECTION 4 — Location Map */}
+        {/* SECTION 4 — Location Map (unchanged) */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-red-500" />

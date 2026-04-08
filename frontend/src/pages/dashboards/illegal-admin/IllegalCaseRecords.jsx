@@ -21,6 +21,19 @@ function statusStyle(status) {
   }[status] || "bg-slate-100 text-slate-600";
 }
 
+/**
+ * Returns the active filter button style per status.
+ * STYLE: open=blue, escalated=yellow, resolved=green when active.
+ */
+function activeFilterStyle(status) {
+  return {
+    ALL:      "bg-[#0f172a] text-white",
+    OPEN:     "bg-blue-600 text-white",
+    ESCALATED:"bg-yellow-400 text-yellow-900",
+    RESOLVED: "bg-emerald-600 text-white",
+  }[status] || "bg-[#0f172a] text-white";
+}
+
 export default function IllegalCaseRecords() {
   const navigate = useNavigate();
   const [cases, setCases] = useState([]);
@@ -99,9 +112,10 @@ export default function IllegalCaseRecords() {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
+              /* STYLE: active uses per-status color; inactive is white with border */
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                 statusFilter === s
-                  ? "bg-[#0f172a] text-white"
+                  ? activeFilterStyle(s)
                   : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -114,7 +128,7 @@ export default function IllegalCaseRecords() {
       {/* Case list */}
       {loading ? (
         <div className="space-y-3">
-          {[1,2,3].map((i) => <div key={i} className="bg-slate-100 animate-pulse h-20 rounded-2xl" />)}
+          {[1, 2, 3].map((i) => <div key={i} className="bg-slate-100 animate-pulse h-20 rounded-2xl" />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
@@ -139,11 +153,15 @@ export default function IllegalCaseRecords() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{code}</p>
+                  {/* STYLE: unique code in green rounded label */}
+                  <span className="inline-block px-2 py-0.5 rounded-md bg-green-100 text-green-700 text-[10px] font-black tracking-wider border border-green-200 mb-0.5">
+                    {code}
+                  </span>
                   <p className="font-black text-[#1e3a5f] text-sm mt-0.5 truncate">{c.title}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Calendar className="w-3 h-3 text-slate-400" />
-                    <span className="text-xs text-slate-400">
+                    <Calendar className="w-3 h-3 text-red-400" />
+                    {/* STYLE: date in red */}
+                    <span className="text-xs text-red-500 font-semibold">
                       {format(new Date(c.createdAt), "MMM dd, yyyy")}
                     </span>
                   </div>
@@ -176,11 +194,11 @@ export default function IllegalCaseRecords() {
                     </button>
                   )}
 
-                  {/* Delete — OPEN or RESOLVED (not ESCALATED) */}
+                  {/* STYLE: delete icon in red; OPEN or RESOLVED (not ESCALATED) */}
                   {canDelete && (
                     <button
                       onClick={() => handleDelete(c._id, c.status)}
-                      className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition"
+                      className="p-2 rounded-lg hover:bg-red-50 text-red-500 hover:text-red-700 transition"
                       title="Delete record"
                     >
                       <Trash2 className="w-4 h-4" />

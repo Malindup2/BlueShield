@@ -17,7 +17,18 @@ const FALLBACK_DATA = {
   CRITICAL: { imo: "IMO4444444", vesselType: "Industrial Trawler", registeredOwner: "Deep Sea Exploiters Corp", riskCategory: "critical", previousViolations: 8 },
 };
 
-// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+
+  // Validates that the data returned by the external vessel API is a proper vessel object
+  
+ 
+function isValidVesselResponse(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  // At least one known vessel field must be present and truthy
+  const knownFields = ["imo", "vesselType", "registeredOwner", "riskCategory"];
+  return knownFields.some((field) => data[field] !== undefined && data[field] !== null && data[field] !== "");
+}
+
+//  DASHBOARD 
 
 exports.getPendingReports = async () => {
   const reports = await Report.find({ reportType: "ILLEGAL_FISHING" })
@@ -34,12 +45,10 @@ exports.getPendingReports = async () => {
   return reports.map((r) => ({ ...r.toObject(), illegalCase: caseMap[r._id.toString()] || null }));
 };
 
-/**
- * FIX: Use findByIdAndUpdate instead of report.save() to avoid Mongoose
- * CastError caused by the attachments subdocument having a field named "type"
- * which conflicts with Mongoose's reserved schema keyword.
- * runValidators: false ensures only the status field is validated.
- */
+
+  //Use findByIdAndUpdate instead of report.save() to avoid Mongoose cast error
+ 
+ 
 exports.markAsReviewed = async ({ reportId }) => {
   const report = await Report.findByIdAndUpdate(
     reportId,
@@ -73,11 +82,11 @@ exports.deleteReviewedCase = async ({ reportId }) => {
   return { reportId, illegalCaseId: illegalCase ? illegalCase._id : null };
 };
 
-// ─── ILLEGAL CASE REVIEW RECORDS ─────────────────────────────────────────────
+//  ILLEGAL CASE REVIEW RECORDS 
 
-/**
- * FIX: Use findByIdAndUpdate instead of report.save() to avoid CastError.
- */
+
+ // Use findByIdAndUpdate instead of report.save() to avoid CastError.
+ 
 exports.createCase = async ({ reportId, payload, actorId }) => {
   const report = await Report.findById(reportId);
   if (!report) {
@@ -109,7 +118,7 @@ exports.createCase = async ({ reportId, payload, actorId }) => {
     createdBy: actorId,
   });
 
-  // FIX: Use findByIdAndUpdate to avoid CastError on attachments
+  //  Use findByIdAndUpdate to avoid CastError on attachments
   await Report.findByIdAndUpdate(
     reportId,
     { $set: { status: "VERIFIED" } },
@@ -159,25 +168,36 @@ exports.listCases = async ({ query }) => {
   return { page, limit, total, items };
 };
 
-/**
- * FIX: Use .lean() so trackedVesselData (Mixed type) is returned as a plain
- * JavaScript object instead of a Mongoose Document. Without .lean(), accessing
- * vessel.imo etc. works in JS but JSON.stringify returns {} because Mongoose
- * wraps Mixed fields — causing empty values in the frontend textMap.
- */
+
+ //Use .lean() so trackedVesselData (Mixed type) is returned as a plain javascript object
+ 
+ 
 exports.getCaseById = async (caseId) => {
   const doc = await IllegalCase.findById(caseId)
     .populate("baseReport")
     .populate("createdBy", "name email role")
     .populate("assignedOfficer", "name email role")
     .populate("escalatedBy", "name email")
-    .lean(); // ensures trackedVesselData is a plain JS object, not Mongoose wrapper
+    .lean(); // returns plain JS objects — Mixed fields are not Mongoose wrapped
 
   if (!doc) {
     const err = new Error("Illegal case not found");
     err.statusCode = 404;
     throw err;
   }
+
+  // Normalise corrupted trackedVesselData (stored as string from bad API response)
+  // so the frontend always receives either a valid object or null — never a string/{}
+  if (doc.trackedVesselData !== null && doc.trackedVesselData !== undefined) {
+    if (!isValidVesselResponse(doc.trackedVesselData)) {
+      console.warn(
+        `[getCaseById] trackedVesselData for case ${caseId} is not a valid vessel object. ` +
+        `Stored value type: ${typeof doc.trackedVesselData}. Normalising to null for frontend.`
+      );
+      doc.trackedVesselData = null;
+    }
+  }
+
   return doc;
 };
 
@@ -197,13 +217,13 @@ exports.deleteCase = async ({ caseId }) => {
   return { id: caseId };
 };
 
-// ─── OFFICERS ─────────────────────────────────────────────────────────────────
+//  OFFICERS 
 
 exports.getOfficers = async () => {
   return User.find({ role: "OFFICER", isActive: true }).select("name email role");
 };
 
-// ─── ESCALATE ─────────────────────────────────────────────────────────────────
+//  ESCALATE 
 
 exports.escalateCase = async ({ caseId, officerId, actorId }) => {
   const illegalCase = await IllegalCase.findById(caseId);
@@ -245,7 +265,7 @@ exports.escalateCase = async ({ caseId, officerId, actorId }) => {
   illegalCase.escalatedBy = actorId;
   await illegalCase.save();
 
-  // FIX: Use findByIdAndUpdate to avoid CastError on attachments
+  //  Use findByIdAndUpdate to avoid CastError on attachments
   if (illegalCase.baseReport) {
     await Report.findByIdAndUpdate(
       illegalCase.baseReport,
@@ -260,7 +280,7 @@ exports.escalateCase = async ({ caseId, officerId, actorId }) => {
     .lean();
 };
 
-// ─── RESOLVE ─────────────────────────────────────────────────────────────────
+//  RESOLVE 
 
 exports.resolveCase = async ({ caseId }) => {
   const illegalCase = await IllegalCase.findById(caseId);
@@ -273,7 +293,7 @@ exports.resolveCase = async ({ caseId }) => {
   illegalCase.isReviewed = true;
   await illegalCase.save();
 
-  // FIX: Use findByIdAndUpdate to avoid CastError on attachments
+  //  Use findByIdAndUpdate to avoid CastError on attachments
   if (illegalCase.baseReport) {
     await Report.findByIdAndUpdate(
       illegalCase.baseReport,
@@ -284,7 +304,8 @@ exports.resolveCase = async ({ caseId }) => {
   return illegalCase;
 };
 
-// ─── VESSEL TRACKING ──────────────────────────────────────────────────────────
+//  VESSEL TRACKING 
+
 
 exports.trackVessel = async ({ caseId }) => {
   const illegalCase = await IllegalCase.findById(caseId);
@@ -306,26 +327,59 @@ exports.trackVessel = async ({ caseId }) => {
     throw err;
   }
 
-  let vesselData, dataSource;
+  let vesselData;
+  let dataSource;
+
   try {
     const response = await axios.get(selectedUrl, { timeout: 10000 });
-    vesselData = response.data;
-    dataSource = "external_api";
-    console.log(`[trackVessel] External API success severity=${illegalCase.severity}`);
+    const rawData = response.data;
+
+    // Validate the response is a proper vessel object.
+    
+    if (isValidVesselResponse(rawData)) {
+      //  Force a plain JS object to eliminate any proxy/wrapper artifacts
+      vesselData = JSON.parse(JSON.stringify(rawData));
+      dataSource = "external_api";
+      console.log(`[trackVessel] External API success severity=${illegalCase.severity}`);
+    } else {
+      // API responded but with invalid/unexpected data (Beeceptor default text)
+      console.warn(
+        `[trackVessel] External API returned invalid vessel data for severity=${illegalCase.severity}. ` +
+        `Response type: ${typeof rawData}. Using fallback.`
+      );
+      vesselData = FALLBACK_DATA[illegalCase.severity];
+      dataSource = "fallback";
+    }
   } catch (apiError) {
-    console.warn(`[trackVessel] Fallback used: ${apiError.message}`);
+    // API call failed entirely (timeout, network error)
+    console.warn(`[trackVessel] External API call failed: ${apiError.message}. Using fallback.`);
     vesselData = FALLBACK_DATA[illegalCase.severity];
     dataSource = "fallback";
   }
 
-  illegalCase.trackedVesselData = vesselData;
-  illegalCase.trackButtonUsed = true;
-  await illegalCase.save();
+  // Use findByIdAndUpdate with $set for the Mixed field
+  // This avoids Mongoose's dirty detection issue with Mixed types and guarantees
+  // the plain object is written exactly as it is to MongoDB, with no schema casting
+  await IllegalCase.findByIdAndUpdate(
+    caseId,
+    {
+      $set: {
+        trackedVesselData: vesselData,
+        trackButtonUsed: true,
+      },
+    },
+    { new: true, runValidators: false }
+  );
 
-  return { vesselData, severity: illegalCase.severity, trackedAt: new Date(), dataSource };
+  return {
+    vesselData,
+    severity: illegalCase.severity,
+    trackedAt: new Date(),
+    dataSource,
+  };
 };
 
-// ─── NOTES ────────────────────────────────────────────────────────────────────
+//  NOTES 
 
 exports.addNote = async ({ caseId, content }) => {
   const illegalCase = await IllegalCase.findByIdAndUpdate(

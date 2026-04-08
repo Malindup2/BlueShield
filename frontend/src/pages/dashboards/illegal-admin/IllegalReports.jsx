@@ -187,11 +187,15 @@ export default function IllegalReports() {
                     <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-black uppercase tracking-widest">
                       Illegal
                     </span>
-                    <span className="text-[10px] font-black text-slate-400 tracking-wider">{code}</span>
+                    {/* STYLE: unique code in green rounded label */}
+                    <span className="px-2 py-0.5 rounded-md bg-green-100 text-green-700 text-[10px] font-black tracking-wider border border-green-200">
+                      {code}
+                    </span>
                   </div>
+                  {/* STYLE: eye icon with dark blue border */}
                   <button
                     onClick={() => setViewReport(report)}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition"
+                    className="p-1.5 rounded-lg border border-blue-800 text-blue-800 hover:bg-blue-50 transition"
                     title="View details"
                   >
                     <Eye className="w-4 h-4" />
@@ -208,12 +212,14 @@ export default function IllegalReports() {
 
                 {/* Action buttons */}
                 <div className="flex gap-2 mt-auto pt-2 border-t border-slate-100">
+                  {/* STYLE: dark grey border on mark as reviewed */}
                   <button
                     onClick={() => handleMarkReviewed(report._id)}
-                    className="flex-1 py-2 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                    className="flex-1 py-2 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition border border-slate-400"
                   >
                     Mark as Reviewed
                   </button>
+                  {/* STYLE: navy blue background for create case record */}
                   <button
                     onClick={() => handleCreateCaseRecord(report._id)}
                     disabled={hasCase}
@@ -221,7 +227,7 @@ export default function IllegalReports() {
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1 ${
                       hasCase
                         ? "bg-slate-50 text-slate-300 cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-[#1e3a8a] hover:bg-[#1e40af] text-white"
                     }`}
                   >
                     <Plus className="w-3 h-3" />
@@ -254,10 +260,20 @@ export default function IllegalReports() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-black text-slate-900 text-sm truncate">{report.title}</p>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${isResolved ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                      {isResolved ? "Resolved" : "Rejected"}
+                    {/* STYLE: rejected — white bg, red border; resolved — keep existing emerald */}
+                    {isResolved ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-300">
+                        Resolved
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-white text-red-600 border border-red-500">
+                        Rejected
+                      </span>
+                    )}
+                    {/* STYLE: unique code in green rounded label */}
+                    <span className="px-2 py-0.5 rounded-md bg-green-100 text-green-700 text-[10px] font-black tracking-wider border border-green-200">
+                      {code}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-bold">{code}</span>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {isResolved
@@ -266,16 +282,18 @@ export default function IllegalReports() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* STYLE: eye icon with dark blue border */}
                   <button
                     onClick={() => setViewReport(report)}
-                    className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition"
+                    className="p-2 rounded-lg border border-blue-800 text-blue-800 hover:bg-blue-50 transition"
                     title="View report"
                   >
                     <Eye className="w-4 h-4" />
                   </button>
+                  {/* STYLE: delete icon with red border */}
                   <button
                     onClick={() => handleDelete(report._id)}
-                    className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition"
+                    className="p-2 rounded-lg border border-red-500 text-red-500 hover:bg-red-50 transition"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -353,9 +371,6 @@ export default function IllegalReports() {
                   </p>
                   <div className="grid grid-cols-3 gap-3">
                     {viewReport.attachments.map((att, idx) => {
-                      // FIX: Use robust isImageAttachment() helper instead of inline check
-                      // This handles Mongoose subdocument serialization edge cases
-                      // and detects images from known hosts even without file extensions
                       const url = att?.url || att || "";
                       const attObj = typeof att === "string" ? { url: att } : att;
                       const showAsImage = isImageAttachment(attObj);
@@ -367,7 +382,6 @@ export default function IllegalReports() {
                             alt={`attachment-${idx + 1}`}
                             className="w-full h-24 object-cover rounded-xl border border-slate-200 hover:opacity-80 transition"
                             onError={(e) => {
-                              // If image fails to load, replace with a file link
                               e.target.parentElement.innerHTML = `
                                 <div class="flex items-center gap-2 bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs font-bold text-slate-500 h-24">
                                   <span>Image unavailable</span>
