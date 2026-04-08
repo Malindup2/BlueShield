@@ -71,7 +71,10 @@ exports.list = async ({ query, user }) => {
     Enforcement.find(filter)
       .populate({
         path: "relatedCase",
-        populate: { path: "baseReport" },
+        populate: [
+          { path: "baseReport" },
+          { path: "escalatedBy", select: "name email role" },
+        ],
       })
       .populate("leadOfficer", "name email role")
       .sort(sort)
@@ -87,7 +90,10 @@ exports.getById = async (enforcementId, user) => {
   const doc = await Enforcement.findById(enforcementId)
     .populate({
       path: "relatedCase",
-      populate: { path: "baseReport" },
+      populate: [
+        { path: "baseReport" },
+        { path: "escalatedBy", select: "name email role" },
+      ],
     })
     .populate("leadOfficer", "name email role");
 
@@ -326,7 +332,15 @@ exports.addEvidence = async ({ enforcementId, evidenceData, attachments, actor, 
  * @returns {Array} Array of evidence documents
  */
 exports.getEvidenceByEnforcement = async (enforcementId, actor) => {
-  const enforcement = await Enforcement.findById(enforcementId);
+  const enforcement = await Enforcement.findById(enforcementId)
+    .populate({
+      path: "relatedCase",
+      populate: {
+        path: "baseReport",
+        select: "title description attachments reportedBy createdAt",
+        populate: { path: "reportedBy", select: "name email" },
+      },
+    });
   if (!enforcement) {
     const err = new Error("Enforcement not found");
     err.statusCode = 404;
@@ -335,10 +349,58 @@ exports.getEvidenceByEnforcement = async (enforcementId, actor) => {
 
   assertOfficerOwnership(enforcement, actor, actor?._id);
 
-  return Evidence.find({ enforcement: enforcementId })
+  const enforcementEvidence = await Evidence.find({ enforcement: enforcementId })
     .populate("collectedBy", "name email")
     .populate("verifiedBy", "name email")
     .sort("-collectedAt");
+
+  const report = enforcement.relatedCase?.baseReport;
+  const reportAttachments = Array.isArray(report?.attachments) ? report.attachments : [];
+
+  const reportEvidenceItems = reportAttachments
+    .filter((attachment) => Boolean(attachment?.url))
+    .map((attachment, index) => {
+      const attachmentType = String(attachment.type || "").toLowerCase();
+      const mappedType = attachmentType.includes("video")
+        ? "VIDEO"
+        : attachmentType.includes("image") || attachmentType.includes("photo")
+        ? "PHOTOGRAPH"
+        : "DOCUMENT";
+
+      const reportId = report?._id?.toString?.() || "REPORT";
+      const shortReportId = reportId.slice(-6).toUpperCase();
+
+      return {
+        _id: `report-${reportId}-${index + 1}`,
+        source: "REPORT_ATTACHMENT",
+        enforcement: enforcementId,
+        referenceNumber: `RPT-${shortReportId}-${String(index + 1).padStart(2, "0")}`,
+        evidenceType: mappedType,
+        description: report?.title
+          ? `Fisherman Report: ${report.title}`
+          : report?.description || "Fisherman report attachment",
+        storageLocation: "Fisherman Submitted Report",
+        collectionMethod: "Citizen submission",
+        condition: "INTACT",
+        isSealed: false,
+        collectedBy: report?.reportedBy || null,
+        collectedAt: attachment.uploadedAt || report?.createdAt || enforcement.createdAt,
+        verifiedBy: null,
+        verifiedAt: null,
+        attachments: [
+          {
+            url: attachment.url,
+            filename: `Report Attachment ${index + 1}`,
+            uploadedAt: attachment.uploadedAt || report?.createdAt || enforcement.createdAt,
+          },
+        ],
+        notes: "Linked from fisherman report",
+      };
+    });
+
+  return [...enforcementEvidence.map((item) => item.toObject()), ...reportEvidenceItems].sort(
+    (a, b) => new Date(b.collectedAt || 0).getTime() - new Date(a.collectedAt || 0).getTime()
+  );
 };
 
 /**
@@ -461,6 +523,8 @@ exports.addTeamMember = async ({ enforcementId, teamData, actor, actorId }) => {
 
   assertOfficerOwnership(enforcement, actor, actorId);
 
+  const normalizedStatus = teamData.status === "ACTIVE" ? "ON_DUTY" : teamData.status;
+
   const selectedId = teamData.officerId;
 
   const officerUser = selectedId
@@ -471,12 +535,40 @@ exports.addTeamMember = async ({ enforcementId, teamData, actor, actorId }) => {
       }).select("name email role")
     : null;
 
+  if (selectedId && !officerUser) {
+    const err = new Error("Selected officer user is invalid or inactive");
+    err.statusCode = 400;
+    throw err;
+  }
+
   const memberName = officerUser?.name || teamData.name;
   const memberEmail = officerUser?.email || teamData.email;
 
   if (!officerUser && (!memberName || !memberEmail)) {
     const err = new Error("name and email are required when no officer user is selected");
     err.statusCode = 400;
+    throw err;
+  }
+
+  // A member is "on duty" when they are ACTIVE in any non-resolved case.
+  // Prevent assigning the same identity to another case while on duty.
+  const identityFilter = officerUser
+    ? { officer: officerUser._id }
+    : { email: memberEmail.toLowerCase() };
+
+  const activeAssignments = await TeamMember.find({
+    ...identityFilter,
+    status: "ON_DUTY",
+    enforcement: { $ne: enforcementId },
+  }).populate("enforcement", "status");
+
+  const onDutyElsewhere = activeAssignments.find(
+    (assignment) => assignment.enforcement?.status && assignment.enforcement.status !== "CLOSED_RESOLVED"
+  );
+
+  if (onDutyElsewhere) {
+    const err = new Error("Member is currently on duty in another active case");
+    err.statusCode = 409;
     throw err;
   }
 
@@ -502,7 +594,7 @@ exports.addTeamMember = async ({ enforcementId, teamData, actor, actorId }) => {
     contactNumber: teamData.contactNumber,
     responsibilities: teamData.responsibilities,
     role: teamData.role,
-    status: teamData.status || "ACTIVE",
+    status: normalizedStatus || "ON_DUTY",
     specialization: teamData.specialization,
     hoursLogged: teamData.hoursLogged || 0,
     notes: teamData.notes,
@@ -579,7 +671,7 @@ exports.updateTeamMember = async ({ enforcementId, memberId, payload, actor, act
   // Build update object
   const updateData = {};
   if (payload.role) updateData.role = payload.role;
-  if (payload.status) updateData.status = payload.status;
+  if (payload.status) updateData.status = payload.status === "ACTIVE" ? "ON_DUTY" : payload.status;
   if (payload.department !== undefined) updateData.department = payload.department;
   if (payload.specialization !== undefined) updateData.specialization = payload.specialization;
   if (payload.badgeNumber !== undefined) updateData.badgeNumber = payload.badgeNumber;

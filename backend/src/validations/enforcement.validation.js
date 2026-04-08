@@ -162,7 +162,7 @@ exports.deleteEvidence = (req) => {
 };
 
 const TEAM_ROLES = ["LEAD_INVESTIGATOR", "INVESTIGATOR", "EVIDENCE_HANDLER", "SURVEILLANCE", "LEGAL_LIAISON", "SUPPORT"];
-const TEAM_STATUS = ["ACTIVE", "ON_LEAVE", "RELIEVED"];
+const TEAM_STATUS = ["ON_DUTY", "AVAILABLE", "ON_LEAVE", "RELIEVED"];
 
 exports.addTeamMember = (req) => {
   const errors = [];
