@@ -243,10 +243,10 @@ export default function OfficerCases() {
               <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-blue-100">
                 <Activity className="w-3.5 h-3.5" /> Case Operations
               </p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight text-white">Case Management</h2>
-              <p className="text-slate-200 mt-1">Manage assigned enforcement workflows and statuses.</p>
+              <h2 className="mt-3 text-2xl md:text-3xl font-black tracking-tight text-white">Case Management</h2>
+              <p className="text-slate-200 mt-1 text-sm md:text-base">Manage assigned enforcement workflows and statuses.</p>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 w-full lg:w-[52rem]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 w-full lg:w-[52rem]">
               <div className="h-20 rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 flex items-center justify-between gap-2">
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-slate-200 font-black">Total</p>
@@ -283,7 +283,7 @@ export default function OfficerCases() {
                   <CheckCircle className="w-4 h-4 text-white bg-white/90 rounded" style={{ backgroundColor: '#fff', color: '#059669' }} />
                 </div>
               </div>
-              <div className="h-20 rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 flex items-center justify-between gap-2">
+              <div className="h-20 rounded-xl border border-white/15 bg-white/10 px-3 py-2.5 flex items-center justify-between gap-2 sm:col-span-2 lg:col-span-1">
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-slate-200 font-black">Critical</p>
                   <p className="mt-1 text-lg font-black text-white">{loading ? "--" : caseStats.critical}</p>
@@ -296,12 +296,12 @@ export default function OfficerCases() {
           </div>
 
           <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm space-y-3">
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search case ID or description"
-                className="lg:col-span-2 w-full rounded-lg border border-white/20 bg-white/90 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="sm:col-span-2 lg:col-span-2 w-full rounded-lg border border-white/20 bg-white/90 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
 
               <select
@@ -327,7 +327,7 @@ export default function OfficerCases() {
                 <option value="LOW">Low</option>
               </select>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-1">
                 <button
                   onClick={clearFilters}
                   className="flex-1 flex items-center justify-center gap-2 bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg font-semibold hover:bg-slate-200 transition"

@@ -61,7 +61,7 @@ export default function Register() {
     <div className="flex min-h-screen bg-slate-50">
 
       {/* Right side: Register Form (Swapped sides for variety, or keep same. Let's keep form on right for consistency) */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 h-screen overflow-y-auto">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-5 sm:p-8 md:p-12 min-h-screen lg:h-screen overflow-y-auto">
         <div className="w-full max-w-md py-6">
           <motion.div
             initial={{ opacity: 0, x: -20 }}

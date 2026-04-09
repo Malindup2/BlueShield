@@ -677,13 +677,13 @@ export default function OfficerTeam() {
               ) : null}
             </div>
 
-            <div className="mt-1 flex items-center justify-between text-[11px] text-slate-200/70 font-semibold uppercase tracking-wider">
+            <div className="mt-1 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-200/70 font-semibold uppercase tracking-wider gap-1">
               <span>{selectedCase ? "Roster Connected" : "Select Case to Manage Personnel"}</span>
               <span>{enforcements.length} Cases Available</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Total Members</p>
@@ -742,8 +742,8 @@ export default function OfficerTeam() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 lg:grid-cols-4 gap-3">
-        <div className="relative lg:col-span-2">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="relative sm:col-span-2">
           <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
             value={teamSearchTerm}

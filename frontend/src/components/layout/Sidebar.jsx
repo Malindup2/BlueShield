@@ -2,7 +2,7 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Home, Map, FileWarning, FileText, Users, Settings,
-  LayoutDashboard, Briefcase, Sparkles, Fingerprint, CheckCircle, MapPin
+  LayoutDashboard, Briefcase, Sparkles, Fingerprint, CheckCircle, MapPin, X
 } from "lucide-react";
 
 const MENU_ITEMS = [
@@ -36,53 +36,63 @@ const MENU_ITEMS = [
   { title: "Manage Users", path: "/dashboard/system-admin/users", icon: <Users className="w-5 h-5" />, roles: ["SYSTEM_ADMIN"] },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const currentRole = localStorage.getItem("userRole") || "FISHERMAN";
   const visibleLinks = MENU_ITEMS.filter((item) => item.roles.includes(currentRole));
 
   return (
-    <div className="w-64 bg-slate-900 text-slate-300 h-full flex flex-col shadow-xl">
-      <div className="h-16 flex items-center px-6 bg-slate-950 border-b border-slate-800">
-        <div className="flex items-center gap-3 w-full">
-          <img src="/logo.svg" alt="BlueShield Logo" className="h-8 w-8 object-contain rounded-lg border border-white/10 shadow-sm" />
-          <span className="font-bold text-white tracking-wide">BlueShield</span>
+    <>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 h-full flex flex-col shadow-xl transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-auto ${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        <div className="h-16 flex items-center justify-between px-6 bg-slate-950 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="BlueShield Logo" className="h-8 w-8 object-contain rounded-lg border border-white/10 shadow-sm" />
+            <span className="font-bold text-white tracking-wide">BlueShield</span>
+          </div>
+          <button onClick={onClose} className="lg:hidden p-1 text-slate-400 hover:text-white">
+            <X className="w-6 h-6" />
+          </button>
         </div>
-      </div>
 
-      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 px-2">
-          {currentRole.replace("_", " ")} MENU
-        </div>
-        {visibleLinks.map((link) => {
-          const isRootDashboard = link.path.split("/").length <= 3;
-          const isActive = isRootDashboard
-            ? location.pathname === link.path
-            : location.pathname === link.path || location.pathname.startsWith(`${link.path}/`);
-          return (
-            <Link
-              key={link.path}
-              to={link.path}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                isActive ? "bg-blue-600 text-white shadow-md font-medium" : "hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              {link.icon}
-              <span className="text-sm">{link.title}</span>
-            </Link>
-          );
-        })}
-      </nav>
+        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 px-2">
+            {currentRole.replace("_", " ")} MENU
+          </div>
+          {visibleLinks.map((link) => {
+            const isRootDashboard = link.path.split("/").length <= 3;
+            const isActive = isRootDashboard
+              ? location.pathname === link.path
+              : location.pathname === link.path || location.pathname.startsWith(`${link.path}/`);
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                onClick={() => {
+                  if (window.innerWidth < 1024) onClose();
+                }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                  isActive ? "bg-blue-600 text-white shadow-md font-medium" : "hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                {link.icon}
+                <span className="text-sm">{link.title}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-      <div className="p-4 bg-slate-950 border-t border-slate-800">
-        <div className="bg-slate-900 rounded-xl p-3 border border-slate-800 flex items-center gap-3">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-          <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">System Health</p>
-            <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Optimal</p>
+        <div className="p-4 bg-slate-950 border-t border-slate-800">
+          <div className="bg-slate-900 rounded-xl p-3 border border-slate-800 flex items-center gap-3">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">System Health</p>
+              <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Optimal</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

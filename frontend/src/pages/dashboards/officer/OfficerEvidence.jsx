@@ -513,13 +513,13 @@ export default function OfficerEvidence() {
               ) : null}
             </div>
 
-            <div className="mt-1 flex items-center justify-between text-[11px] text-slate-200/70 font-semibold uppercase tracking-wider">
+            <div className="mt-1 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-200/70 font-semibold uppercase tracking-wider gap-1">
               <span>{selectedCase ? "Evidence Filtered by Case" : "Showing Evidence Across Cases"}</span>
               <span>{enforcements.length} Cases Available</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-200">Total</p>
@@ -558,8 +558,8 @@ export default function OfficerEvidence() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-3">
-            <div className="xl:col-span-4 relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-12 gap-3">
+            <div className="sm:col-span-2 xl:col-span-4 relative">
               <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 value={searchTerm}
@@ -609,7 +609,7 @@ export default function OfficerEvidence() {
 
             <button
               onClick={clearFilters}
-              className="xl:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white"
+              className="sm:col-span-2 xl:col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white"
             >
               <Filter className="w-4 h-4" /> Clear Filters
             </button>

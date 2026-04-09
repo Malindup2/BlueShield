@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import HomeMap from "../components/HomeMap";
-import { Shield, Brain, AlertTriangle, ArrowRight, MapPin, ChevronRight, MessageCircle, Github, Twitter, Linkedin, Globe, Mail, ExternalLink } from "lucide-react";
+import { Shield, Brain, AlertTriangle, ArrowRight, MapPin, ChevronRight, MessageCircle, Github, Twitter, Linkedin, Globe, Mail, ExternalLink, Menu, X } from "lucide-react";
 
 const ALERTS = [
   { id: 1, type: "CRITICAL", text: "Storm Approaching: Zone B (High Risk)", color: "red" },
@@ -11,6 +11,7 @@ const ALERTS = [
 
 export default function Landing() {
   const [alertIndex, setAlertIndex] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -70,8 +71,27 @@ export default function Landing() {
             <Link to="/register" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition">
               Get Started
             </Link>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              className="md:hidden p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3">
+            <nav className="flex flex-col gap-2 text-sm font-semibold text-slate-700">
+              <a onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100" href="#">Home</a>
+              <a onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100" href="#map">Safety Alerts</a>
+              <a onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-lg hover:bg-slate-100" href="#framework">About Us</a>
+              <Link onClick={() => setMobileMenuOpen(false)} to="/login" className="px-3 py-2 rounded-lg hover:bg-slate-100">Login</Link>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* 2. Marquee Ticker (Directly after Header) */}
@@ -93,7 +113,7 @@ export default function Landing() {
       </div>
 
       {/* 3. Hero Section (Video Background) */}
-      <section className="relative h-[500px] w-full overflow-hidden bg-slate-900 border-b border-slate-800">
+      <section className="relative h-[460px] md:h-[500px] w-full overflow-hidden bg-slate-900 border-b border-slate-800">
         <video 
           autoPlay 
           loop 
@@ -106,7 +126,7 @@ export default function Landing() {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent" />
         
         <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4 max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg">
+          <h1 className="text-4xl md:text-7xl font-extrabold tracking-tight text-white drop-shadow-lg">
             Blue Shield
           </h1>
           <p className="mt-6 text-lg md:text-xl text-white/90 max-w-2xl font-medium drop-shadow-md">
@@ -389,13 +409,13 @@ export default function Landing() {
         href="https://wa.me/94711234567" 
         target="_blank" 
         rel="noopener noreferrer"
-        className="fixed bottom-8 right-8 z-[100] group flex items-center gap-3"
+        className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-[100] group flex items-center gap-3"
       >
         <div className="bg-white px-4 py-2 rounded-full shadow-xl border border-slate-200 text-slate-700 font-bold text-sm opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-4 group-hover:translate-x-0 pointer-events-none whitespace-nowrap">
           Chat with us
         </div>
-        <div className="w-16 h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform active:scale-95 group-relative">
-          <MessageCircle className="w-8 h-8 text-white fill-white/20" />
+        <div className="w-14 h-14 md:w-16 md:h-16 bg-[#25D366] rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform active:scale-95 group-relative">
+          <MessageCircle className="w-7 h-7 md:w-8 md:h-8 text-white fill-white/20" />
         </div>
       </a>
     </div>

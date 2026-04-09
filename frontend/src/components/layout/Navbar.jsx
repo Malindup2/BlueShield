@@ -1,10 +1,10 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut, User, AlertTriangle, X } from "lucide-react";
+import { LogOut, User, AlertTriangle, X, Menu } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 
-export default function Navbar() {
+export default function Navbar({ onMenuClick }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [currentTime, setCurrentTime] = React.useState(new Date());
@@ -41,9 +41,17 @@ export default function Navbar() {
   };
 
   return (
-    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-40 w-full relative">
-      {/* 1. Session Information (Date/Time) */}
-      <div className="flex items-center gap-6">
+    <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-6 z-40 w-full relative">
+      <div className="flex items-center gap-4">
+        {/* Mobile Menu Toggle */}
+        <button 
+          onClick={onMenuClick}
+          className="lg:hidden p-2 text-slate-500 hover:bg-slate-50 rounded-lg transition"
+          aria-label="Open menu"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
         <div className="hidden lg:flex flex-col">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Current Session</span>
           <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
@@ -55,13 +63,13 @@ export default function Navbar() {
       </div>
 
       {/* 2. User Controls & Greeting */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
         {/* User Greeting Block */}
-        <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
-          <div className="text-right">
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Welcome back</div>
-            <div className="text-sm font-bold text-[#0f172a]">
-              {userName} <span className="text-blue-600 uppercase text-[10px] ml-1 px-1.5 py-0.5 bg-blue-50 rounded border border-blue-100 font-black">{formattedRole}</span>
+        <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-2xl border border-slate-100 min-w-0">
+          <div className="text-right hidden sm:block min-w-0">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Status</div>
+            <div className="text-sm font-bold text-[#0f172a] truncate max-w-[9rem] md:max-w-none">
+              <span className="truncate">{userName}</span> <span className="text-blue-600 uppercase text-[10px] ml-1 px-1.5 py-0.5 bg-blue-50 rounded border border-blue-100 font-black">{formattedRole}</span>
             </div>
           </div>
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-900/20 text-xs font-black">

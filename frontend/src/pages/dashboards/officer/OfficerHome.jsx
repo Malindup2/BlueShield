@@ -60,17 +60,17 @@ export default function OfficerHome() {
         <div className="absolute -bottom-24 -right-10 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
 
         <div className="relative z-10">
-          <div className="flex flex-col justify-between gap-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100">
                 <Activity className="w-3.5 h-3.5" /> Command Deck
               </p>
-              <h2 className="mt-4 text-3xl md:text-4xl font-black tracking-tight text-white leading-tight">
+              <h2 className="mt-4 text-2xl md:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
                 Officer Intelligence Overview
               </h2>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm px-4 py-3">
                 <p className="text-[10px] uppercase tracking-widest text-cyan-100/90 font-black">Recent Cases</p>
                 <p className="mt-1 text-2xl font-black text-white">{loading ? "--" : totalRecentCreated}</p>
@@ -79,7 +79,7 @@ export default function OfficerHome() {
                 <p className="text-[10px] uppercase tracking-widest text-cyan-100/90 font-black">Peak Window</p>
                 <p className="mt-1 text-sm md:text-base font-black text-white truncate">{loading ? "--" : peakPeriod.label}</p>
               </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm px-4 py-3 col-span-2 md:col-span-1">
+              <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm px-4 py-3 sm:col-span-2 md:col-span-1">
                 <p className="text-[10px] uppercase tracking-widest text-cyan-100/90 font-black">Updated</p>
                 <p className="mt-1 text-xs md:text-sm font-semibold text-slate-100">{new Date().toLocaleString()}</p>
               </div>
@@ -88,7 +88,7 @@ export default function OfficerHome() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
