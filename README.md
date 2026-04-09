@@ -467,7 +467,7 @@ AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com/
   ![alt text](docs/image.png)
 
 > **Mobile/Web View:** 
-  
+![Mobile View Evidence](docs/mobileview.jpeg)
 
 ### Testing Instructions
 For comprehensive testing instructions, including Unit, Integration, and Performance testing setup and execution, please refer to the **[Testing Instruction Report](./docs/Testing_Instruction_Report.md)**.
