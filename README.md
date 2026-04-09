@@ -357,10 +357,10 @@ MIT
 - DO commit `.env.template` for onboarding new developers.
 - See API docs above for endpoint details and required roles.
  
-###  Detailed Documentation
+### 📄 Detailed Documentation
 For full compliance with the SE-3040 project requirements, please refer to the following detailed reports:
-- **[Testing Instruction Report](./Testing_Instruction_Report.md)**: Detailed guide for Unit, Integration, and Performance testing.
-- **[Deployment Report](./Deployment_Report.md)**: Complete architecture, setup steps, and evidence.
+- **[Testing Instruction Report](./docs/Testing_Instruction_Report.md)**: Detailed guide for Unit, Integration, and Performance testing.
+- **[Deployment Report](./docs/Deployment_Report.md)**: Complete architecture, setup steps, and evidence.
 
 ---
 
@@ -452,25 +452,25 @@ AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com/
 
   Vercel
 
-  ![alt text](<Screenshot 2026-04-09 113309.png>)
+  ![alt text](<docs/Screenshot 2026-04-09 113309.png>)
 
-  ![alt text](<Screenshot 2026-04-09 113143.png>)
+  ![alt text](<docs/Screenshot 2026-04-09 113143.png>)
 
   Render
 
-  ![alt text](<Screenshot 2026-04-09 113454.png>)
+  ![alt text](<docs/Screenshot 2026-04-09 113454.png>)
 
-  ![alt text](<Screenshot 2026-04-09 113442.png>)
+  ![alt text](<docs/Screenshot 2026-04-09 113442.png>)
 
 > **Live API Response:**
 
-  ![alt text](image.png)
+  ![alt text](docs/image.png)
 
 > **Mobile/Web View:** 
   
 
 ### Testing Instructions
-For comprehensive testing instructions, including Unit, Integration, and Performance testing setup and execution, please refer to the **[Testing Instruction Report](./Testing_Instruction_Report.md)**.
+For comprehensive testing instructions, including Unit, Integration, and Performance testing setup and execution, please refer to the **[Testing Instruction Report](./docs/Testing_Instruction_Report.md)**.
 
 ## Best Practices
 - Use a single `.gitignore` at the root; do NOT commit `.env` or `.env.local`
