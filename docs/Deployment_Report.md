@@ -101,17 +101,17 @@ BlueShield follows a decoupled client-server architecture:
 *Evidence of backend web service status: "Live"*
 
 ### Vercel Dashboard (Frontend)
-
-![alt text](<Screenshot 2026-04-09 113513.png>)
-
-![alt text](<Screenshot 2026-04-09 113524.png>)
+ 
+![Vercel Build Evidence](<./Screenshot 2026-04-09 113309.png>)
+ 
+![Vercel Production Evidence](<./Screenshot 2026-04-09 113143.png>)
 
 *Evidence of frontend deployment success.*
 
 ### Live API Response (Swagger UI)
-![Swagger UI Placeholder](/path/to/swagger-screenshot.png)
+![Swagger UI Evidence](./image.png)
 *Evidence of operational API endpoints.*
 
 ### Mobile Responsiveness Evidence
-![Mobile View Placeholder](/path/to/mobile-view-screenshot.png)
+![Mobile View Evidence](./mobileview.jpeg)
 *Visual confirmation of responsive UI for field operations.*
