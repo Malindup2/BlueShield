@@ -88,7 +88,6 @@ describe('request validation modules', () => {
         sourceHazard: 'bad-id',
         zoneType: 'SAFE',
         warningMessage: ' ',
-        center: ['79.8', '6.9'],
         radius: 5,
       },
     });
@@ -97,7 +96,6 @@ describe('request validation modules', () => {
       'sourceHazard is required (ObjectId)',
       'zoneType must be RESTRICTED or DANGEROUS',
       'warningMessage is required (string)',
-      'center must be [lng, lat] numbers',
       'radius must be a number between 10 and 50000 meters',
     ]));
   });

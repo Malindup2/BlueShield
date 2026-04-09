@@ -60,7 +60,7 @@ export default function Login() {
       </div>
 
       {/* Right side: Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 h-screen overflow-y-auto">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-5 sm:p-8 md:p-12 min-h-screen lg:h-screen overflow-y-auto">
         <div className="w-full max-w-md">
           <motion.div
             initial={{ opacity: 0, x: 20 }}

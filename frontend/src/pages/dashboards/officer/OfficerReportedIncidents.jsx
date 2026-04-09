@@ -143,7 +143,7 @@ export default function OfficerReportedIncidents() {
   }
 
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col p-4 sm:p-6 lg:p-8 space-y-6 overflow-hidden">
+    <div className="h-auto lg:h-[calc(100vh-80px)] flex flex-col p-4 sm:p-6 lg:p-8 space-y-6 lg:overflow-hidden">
       {/* Header Area */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-1">
@@ -154,7 +154,7 @@ export default function OfficerReportedIncidents() {
           <p className="text-slate-500 font-medium">Visualizing your active investigation map</p>
         </div>
 
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
            <Filter className="w-4 h-4 text-slate-400 ml-2" />
            {["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW"].map(sev => (
              <button
@@ -172,9 +172,9 @@ export default function OfficerReportedIncidents() {
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 overflow-y-auto lg:overflow-hidden">
         {/* Map Section */}
-        <div className="lg:col-span-2 relative rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white ring-1 ring-slate-200 group">
+        <div className="h-[400px] lg:h-full lg:col-span-2 relative rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white ring-1 ring-slate-200 group">
           <MapContainer 
             center={mapCenter} 
             zoom={10} 
@@ -277,7 +277,7 @@ export default function OfficerReportedIncidents() {
         </div>
 
         {/* List Section */}
-        <div className="flex flex-col min-h-0 space-y-4">
+        <div className="flex flex-col min-h-[500px] lg:min-h-0 space-y-4 lg:overflow-hidden">
           <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex items-center justify-between">
              <div>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Active Load</span>
