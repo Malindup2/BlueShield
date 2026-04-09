@@ -73,6 +73,12 @@ export default function IllegalReports() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewReport, setViewReport] = useState(null);
 
+  /**
+   * FIX: Track report IDs that have been deleted by the user this session.
+   
+   */
+  const [deletedReportIds, setDeletedReportIds] = useState(new Set());
+
   const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
@@ -91,8 +97,11 @@ export default function IllegalReports() {
     (r) => r.status === "PENDING" && !r.illegalCase?.isReviewed
   );
 
+  // Exclude any reportId that was successfully deleted this session
   const reviewedReports = reports.filter(
-    (r) => r.status === "REJECTED" || r.status === "RESOLVED" || r.illegalCase?.isReviewed
+    (r) =>
+      !deletedReportIds.has(r._id) &&
+      (r.status === "REJECTED" || r.status === "RESOLVED" || r.illegalCase?.isReviewed)
   );
 
   const filteredPending = pendingReports.filter((r) => {
@@ -118,6 +127,8 @@ export default function IllegalReports() {
     if (!window.confirm("Remove this case from your dashboard?")) return;
     try {
       await deleteReviewedCase(reportId);
+      //  Record the deleted ID so the card is excluded from reviewedReports
+      setDeletedReportIds((prev) => new Set([...prev, reportId]));
       toast.success("Case removed");
       fetchReports();
     } catch (err) {
@@ -260,7 +271,7 @@ export default function IllegalReports() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-black text-slate-900 text-sm truncate">{report.title}</p>
-                    {/* STYLE: rejected — white bg, red border; resolved — keep existing emerald */}
+                    {/* STYLE: rejected — white bg, red border; resolved — emerald */}
                     {isResolved ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700 border border-emerald-300">
                         Resolved
