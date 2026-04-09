@@ -129,7 +129,8 @@ All protected routes require a JWT in the `Authorization` header:
 
 ### API Reference
 
-The complete, current API reference is documented in [docs/swagger.yaml](docs/swagger.yaml).
+The complete, interactive API documentation is available at:
+**[https://blueshield-kixw.onrender.com/api-docs](https://blueshield-kixw.onrender.com/api-docs)**
 
 The README keeps the human-readable route summary below so each endpoint is clear at a glance.
 
@@ -345,26 +346,121 @@ MIT
 - Beeceptor API (for simulating vessel tracking)
 - Google Gemini API
 - Open-Meteo Marine API
+- DataDocked VesselFinder API
+- MyShipTracking API
+- Position API (vessel position microservice)
+- Cloudinary (image uploads)
+- Azure Translator API
 
 ## Notes
 - Do NOT commit `.env` or `.env.local` files.
 - DO commit `.env.template` for onboarding new developers.
 - See API docs above for endpoint details and required roles.
 
-## Deployment
+## Deployment Documentation
 
-### Backend Deployment
-- Deploy the RESTful API using a cloud platform (e.g., Render, Railway)
-- Set environment variables in the deployment dashboard
-- Obtain and share the live API URL
+This application is deployed using a decoupled architecture with the backend on Render and the frontend on Vercel.
 
-### Frontend Deployment
-- Deploy the React frontend using Vercel, Netlify, or Firebase Hosting
-- Set environment variables (API URL)
-- Obtain and share the live frontend URL
+###  Backend Deployment (Render)
+The Node.js/Express API is hosted on **Render**.
 
-### Deployment Evidence
-- Add screenshots of successful deployment (dashboard, live app, API response)
+**Setup Steps:**
+1.  **Create Service**: Create a new "Web Service" on Render and connect the GitHub repository.
+2.  **Root Directory**: Set the root directory to `./backend`.
+3.  **Build Command**: Set the build command to `npm install`.
+4.  **Start Command**: Set the start command to `npm start`.
+5.  **Environment Variables**: Add all required variables (see below) in the Render dashboard "Environment" section.
+
+**Live Backend API URL:** [https://blueshield-kixw.onrender.com](https://blueshield-kixw.onrender.com)
+
+---
+
+###  Frontend Deployment (Vercel)
+The React application is hosted on **Vercel**.
+
+**Setup Steps:**
+1.  **Import Project**: Import the repository into the Vercel dashboard.
+2.  **Root Directory**: Set the root directory to `./frontend`.
+3.  **Framework Preset**: Select **Vite**.
+4.  **Environment Variables**: Ensure `VITE_API_BASE_URL` is set to point to the Render backend URL.
+5.  **Deploy**: Trigger the deployment.
+
+**Live Frontend Application URL:** [https://blue-shield-ivory.vercel.app](https://blue-shield-ivory.vercel.app)
+
+---
+
+###  Environment Variables
+The following environment variables are required for the system to function. Do **not** expose actual secrets in the repository.
+
+# Server
+PORT=5000
+NODE_ENV=development
+ALLOWED_ORIGIN=https://blue-shield-ivory.vercel.app
+
+# MongoDB
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/blueshield
+
+# Authentication
+JWT_SECRET=your_jwt_secret_here
+JWT_EXPIRE=7d
+
+# Google Gemini AI
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Mapbox
+MAPBOX_API_KEY=your_mapbox_api_key_here
+
+# ---- Vessel Tracking APIs (fallback chain) ----
+
+# 1. DataDocked VesselFinder API (primary)
+DATADOCKED_API_KEY=your_datadocked_api_key_here
+
+# 2. MyShipTracking API (secondary fallback)
+MYSHIPTRACKING_API_KEY=your_myshiptracking_api_key_here
+MYSHIPTRACKING_BASE_URL=https://api.myshiptracking.com
+
+# 3. Beeceptor Mock Vessel API (tertiary fallback)
+BEECEPTOR_VESSEL_API_URL=https://blueshield-vessels.free.beeceptor.com/api/vessels
+
+# Position API (vessel position microservice)
+POSITION_API_BASE_URL=http://localhost:5050
+POSITION_API_TIMEOUT_MS=15000
+
+# Cloudinary (image uploads)
+CLOUDINARY_CLOUD_NAME=your_cloud_name_here
+CLOUDINARY_API_KEY=your_cloudinary_api_key_here
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret_here
+
+# Azure Translator (multilingual support)
+AZURE_TRANSLATOR_KEY=your_azure_translator_key_here
+AZURE_TRANSLATOR_LOCATION=eastasia
+AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com/
+
+---
+
+###  Deployment Evidence
+*Evidence of successful deployment and operational status.*
+
+> **Dashboard Status:** 
+
+  Vercel
+
+  ![alt text](<Screenshot 2026-04-09 113309.png>)
+
+  ![alt text](<Screenshot 2026-04-09 113143.png>)
+
+  Render
+
+  ![alt text](<Screenshot 2026-04-09 113454.png>)
+
+  ![alt text](<Screenshot 2026-04-09 113442.png>)
+
+> **Live API Response:**
+
+  ![alt text](image.png)
+
+> **Mobile/Web View:** 
+  
 
 ## Testing Instructions
 
