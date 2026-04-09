@@ -1,0 +1,52 @@
+config:
+  target: "http://localhost:5000"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 20
+      name: Warm up phase
+    - duration: 120
+      arrivalRate: 20
+      name: Sustained load phase
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "Authentication and Report Browsing"
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "officer@blueshield.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - get:
+          url: "/api/reports"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/api/enforcements"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 2
+      - get:
+          url: "/api/enforcements/stats/basic"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Public Incident Reporting"
+    flow:
+      - post:
+          url: "/api/reports"
+          json:
+            title: "Suspected Illegal Trawling"
+            description: "A vessel was spotted using illegal nets near the restricted zone."
+            reportType: "ILLEGAL_FISHING"
+            severity: "HIGH"
+            location:
+              type: "Point"
+              coordinates: [80.1234, 7.5678]
+              address: "Negombo Coast"

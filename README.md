@@ -356,6 +356,13 @@ MIT
 - Do NOT commit `.env` or `.env.local` files.
 - DO commit `.env.template` for onboarding new developers.
 - See API docs above for endpoint details and required roles.
+ 
+###  Detailed Documentation
+For full compliance with the SE-3040 project requirements, please refer to the following detailed reports:
+- **[Testing Instruction Report](./Testing_Instruction_Report.md)**: Detailed guide for Unit, Integration, and Performance testing.
+- **[Deployment Report](./Deployment_Report.md)**: Complete architecture, setup steps, and evidence.
+
+---
 
 ## Deployment Documentation
 
@@ -462,22 +469,8 @@ AZURE_TRANSLATOR_ENDPOINT=https://api.cognitive.microsofttranslator.com/
 > **Mobile/Web View:** 
   
 
-## Testing Instructions
-
-### Unit Testing
-- Backend: Use Jest or Mocha for unit tests in `backend/tests/`
-- Frontend: Use React Testing Library/Jest
-
-### Integration Testing
-- Test API endpoints using Postman or automated scripts
-- Ensure controllers, services, and DB interact correctly
-
-### Performance Testing
-- Use Artillery.io for backend load testing
-
-### Testing Environment
-- Use `.env.test` for test-specific variables
-- Mock external APIs as needed
+### Testing Instructions
+For comprehensive testing instructions, including Unit, Integration, and Performance testing setup and execution, please refer to the **[Testing Instruction Report](./Testing_Instruction_Report.md)**.
 
 ## Best Practices
 - Use a single `.gitignore` at the root; do NOT commit `.env` or `.env.local`
