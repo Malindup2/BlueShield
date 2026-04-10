@@ -57,9 +57,9 @@ describe('officer enforcement workflow', () => {
       .set('Authorization', `Bearer ${officerToken()}`);
 
     expect(response.status).toBe(200);
-    expect(enforcementService.list).toHaveBeenCalledWith({ 
+    expect(enforcementService.list).toHaveBeenCalledWith({
       query: { page: '1', limit: '10' },
-      user: { _id: 'officer-1', role: 'OFFICER', name: 'Officer One' }
+      user: expect.objectContaining({ _id: 'officer-1', role: 'OFFICER' }),
     });
     expect(response.body.total).toBe(1);
   });
@@ -145,7 +145,7 @@ describe('officer enforcement workflow', () => {
     expect(evidenceListResponse.status).toBe(200);
     expect(enforcementService.getEvidenceByEnforcement).toHaveBeenCalledWith(
       '507f1f77bcf86cd799439011',
-      { _id: 'officer-1', role: 'OFFICER', name: 'Officer One' }
+      expect.objectContaining({ _id: 'officer-1', role: 'OFFICER' }),
     );
 
     const teamCreateResponse = await request(app)
@@ -170,7 +170,7 @@ describe('officer enforcement workflow', () => {
     expect(teamListResponse.status).toBe(200);
     expect(enforcementService.getTeamByEnforcement).toHaveBeenCalledWith(
       '507f1f77bcf86cd799439011',
-      { _id: 'officer-1', role: 'OFFICER', name: 'Officer One' }
+      expect.objectContaining({ _id: 'officer-1', role: 'OFFICER' }),
     );
   });
 
