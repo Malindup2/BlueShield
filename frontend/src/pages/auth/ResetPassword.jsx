@@ -4,6 +4,7 @@ import { Lock, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import axios from "axios";
+import API_BASE_URL from "../../config/api";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -27,7 +28,7 @@ export default function ResetPassword() {
     setLoading(true);
     
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/reset-password/${token}`, { password });
+      await axios.post(`${API_BASE_URL}/api/auth/reset-password/${token}`, { password });
       setSuccess(true);
       toast.success("Password reset successfully!");
       setTimeout(() => navigate("/login"), 3000);

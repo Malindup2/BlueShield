@@ -4,6 +4,7 @@ import { Mail, ArrowRight, HelpCircle, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import axios from "axios";
+import API_BASE_URL from "../../config/api";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -15,7 +16,7 @@ export default function ForgotPassword() {
     setLoading(true);
     
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/forgot-password`, { email });
+      await axios.post(`${API_BASE_URL}/api/auth/forgot-password`, { email });
       setSubmitted(true);
       toast.success("Reset link sent!");
     } catch (error) {

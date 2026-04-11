@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
+import API_BASE_URL from "../../config/api";
 
 export default function VerifyOTP() {
   const [otp, setOtp] = useState("");
@@ -50,7 +51,7 @@ export default function VerifyOTP() {
 
     setLoading(true);
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/verify-otp`, {
+      await axios.post(`${API_BASE_URL}/api/auth/verify-otp`, {
         email,
         otp,
       });
@@ -71,7 +72,7 @@ export default function VerifyOTP() {
     
     setLoading(true);
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/resend-otp`, { email });
+      await axios.post(`${API_BASE_URL}/api/auth/resend-otp`, { email });
       toast("A new verification code has been sent!");
       setResendTimer(60); // 1 minute cooldown
     } catch (error) {
