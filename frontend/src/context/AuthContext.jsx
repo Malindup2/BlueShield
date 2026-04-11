@@ -43,11 +43,15 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(`${API_BASE_URL}/api/auth/register`, userData);
       const data = response.data;
 
-      localStorage.setItem("user", JSON.stringify(data));
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("userRole", data.role);
+      // Only set user/token if they are provided (e.g. for future auto-login or legacy support)
+      // New flow: Backend returns { message, email } but NO token until OTP is verified
+      if (data.token) {
+        localStorage.setItem("user", JSON.stringify(data));
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("userRole", data.role);
+        setUser(data);
+      }
       
-      setUser(data);
       return data;
     } catch (error) {
       throw error;
