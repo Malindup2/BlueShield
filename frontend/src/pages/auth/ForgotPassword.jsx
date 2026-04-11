@@ -15,7 +15,7 @@ export default function ForgotPassword() {
     setLoading(true);
     
     try {
-      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/forgot-password`, { email });
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/auth/forgot-password`, { email });
       setSubmitted(true);
       toast.success("Reset link sent!");
     } catch (error) {
