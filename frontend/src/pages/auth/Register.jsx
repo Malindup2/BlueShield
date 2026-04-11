@@ -33,21 +33,12 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const data = await register(formData);
+      await register(formData);
 
-      toast.success("Account created successfully!");
-
-      // Role-based redirection mapping
-      const roleDashboards = {
-        FISHERMAN: "/dashboard/fisherman",
-        OFFICER: "/dashboard/officer",
-        HAZARD_ADMIN: "/dashboard/hazard-admin",
-        ILLEGAL_ADMIN: "/dashboard/illegal-admin",
-        SYSTEM_ADMIN: "/dashboard/system-admin",
-      };
-
-      const dashboardPath = roleDashboards[data.role] || "/";
-      navigate(dashboardPath);
+      toast.success("Account created! Please verify your email.");
+      
+      // Redirect to OTP verification page
+      navigate("/verify-otp", { state: { email: formData.email } });
     } catch (error) {
       console.error("Registration error:", error);
       const message = error.response?.data?.message || "Registration failed. Please try again.";
