@@ -51,11 +51,18 @@ const registerUser = async (req, res, next) => {
         });
       } catch (err) {
         console.error('Email send failed:', err);
-        res.status(201).json({
-          message: 'User details saved, but verification email failed to send. Check your configuration.',
+        const response = {
+          message: 'Could not send verification email. Please try again or use resend OTP.',
           email: pendingUser.email,
-          debugCode: otp, // For development purposes
-        });
+          otpSent: false,
+        };
+
+        // Keep debug OTP only for local troubleshooting, never in production.
+        if (process.env.NODE_ENV !== 'production') {
+          response.debugCode = otp;
+        }
+
+        res.status(502).json(response);
       }
     } else {
       res.status(400).json({ message: 'Invalid registration data' });
@@ -274,4 +281,4 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
-};
+};

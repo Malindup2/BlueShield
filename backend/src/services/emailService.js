@@ -1,22 +1,24 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
+  const smtpHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
+  const smtpPort = Number(process.env.EMAIL_PORT || 587);
+
   // Create a transporter
   const transporterConfig = {
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    requireTLS: smtpPort !== 465,
+    family: 4,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   };
-
-  // If using Gmail, it's more reliable to use the 'service' preset
-  if (process.env.EMAIL_HOST === 'smtp.gmail.com') {
-    transporterConfig.service = 'gmail';
-  } else {
-    transporterConfig.host = process.env.EMAIL_HOST;
-    transporterConfig.port = process.env.EMAIL_PORT;
-    transporterConfig.secure = process.env.EMAIL_PORT == 465;
-  }
 
   const transporter = nodemailer.createTransport(transporterConfig);
 
